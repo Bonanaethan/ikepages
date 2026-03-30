@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body>
+
+  <div id="dashboard">
+    <nav class="navbar">
+      <div class="nav-brand">
+        <a href="https://ikids.education" target="_blank" rel="noopener noreferrer" class="ikids-link" title="iKids Education">
+          <svg viewBox="0 0 110 36" xmlns="http://www.w3.org/2000/svg" width="110" height="36" aria-label="iKids Education">
+            <rect x="1" y="1" width="108" height="34" rx="8" fill="#fff8e1" stroke="#f9a825" stroke-width="1.5"/>
+            <text x="55" y="15" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="#1c69d4" letter-spacing="3">iKIDS</text>
+            <line x1="10" y1="19.5" x2="100" y2="19.5" stroke="#f9a825" stroke-width="0.8" opacity="0.6"/>
+            <text x="55" y="30" text-anchor="middle" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" fill="#f9a825" letter-spacing="2.5">EDUCATION</text>
+          </svg>
+        </a>
+      </div>
+      <div class="nav-user">
+        <span id="nav-username"></span>
+        <button id="customize-btn" title="Customize">⚙ Customize</button>
+      </div>
+    </nav>
+
+    <!-- Customization Panel -->
+    <div id="customize-panel">
+      <div class="cp-header">
+        <span>Customize</span>
+        <button id="customize-close">×</button>
+      </div>
+      <div class="cp-body">
+        <div class="cp-section">Appearance</div>
+
+        <label class="cp-label">Accent Color</label>
+        <input type="color" id="set-accent" class="cp-color" />
+
+        <label class="cp-label">Background Style</label>
+        <select id="set-bg" class="cp-select">
+          <option value="grid">Grid</option>
+          <option value="dots">Dots</option>
+          <option value="none">None</option>
+        </select>
+
+        <div class="cp-section">Widgets</div>
+
+        <label class="cp-toggle">
+          <span>Show Clock</span>
+          <input type="checkbox" id="set-clock" />
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        </label>
+
+        <label class="cp-toggle">
+          <span>Show Weather</span>
+          <input type="checkbox" id="set-weather" />
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        </label>
+
+        <div class="cp-section">Profile</div>
+
+        <label class="cp-label">Display Name</label>
+        <input type="text" id="set-name" class="cp-input" placeholder="Your name" />
+      </div>
+    </div>
+
+    <main class="dashboard-content">
+      <div class="greeting-card">
+        <h2 id="greeting">Good morning</h2>
+        <p id="current-date"></p>
+      </div>
+
+      <div class="widgets">
+        <!-- Clock -->
+        <div class="widget clock-widget">
+          <div class="widget-label">Local Time</div>
+          <div id="clock" class="clock-display">--:--:--</div>
+        </div>
+
+        <!-- Weather -->
+        <div class="widget weather-widget">
+          <div class="widget-label">Weather</div>
+          <div id="weather-content">
+            <div class="weather-loading">Locating...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookmarks -->
+      <div class="bookmarks-section">
+        <div class="widget-label">Bookmarks</div>
+        <div class="bookmarks-grid" id="bookmarks-grid"></div>
+        <button class="add-bookmark-btn" id="add-bookmark-btn">+ Add Bookmark</button>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="quicklinks-section">
+        <div class="widget-label">Pages</div>
+        <a href="../homework/index.html" class="quicklink-card">
+          <span class="quicklink-icon">📚</span>
+          <span>Homework</span>
+        </a>
+      </div>
+
+      <!-- Add Bookmark Modal -->
+      <div id="bookmark-modal" class="modal hidden">
+        <div class="modal-card">
+          <h3>Add Bookmark</h3>
+          <input type="text" id="bm-name" placeholder="Name (e.g. Gmail)" />
+          <input type="url" id="bm-url" placeholder="URL (e.g. https://gmail.com)" />
+          <div class="modal-actions">
+            <button id="bm-cancel">Cancel</button>
+            <button id="bm-save" class="primary">Save</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

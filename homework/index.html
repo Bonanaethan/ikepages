@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Homework</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=5" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <a href="https://ikids.education" target="_blank" rel="noopener noreferrer" class="ikids-link" title="iKids Education">
+      <svg viewBox="0 0 110 36" xmlns="http://www.w3.org/2000/svg" width="90" height="30" aria-label="iKids Education">
+        <rect x="1" y="1" width="108" height="34" rx="8" fill="#fff8e1" stroke="#f9a825" stroke-width="1.5"/>
+        <text x="55" y="15" text-anchor="middle" font-family="Inter,sans-serif" font-size="11" font-weight="800" fill="#1c69d4" letter-spacing="3">iKIDS</text>
+        <line x1="10" y1="19.5" x2="100" y2="19.5" stroke="#f9a825" stroke-width="0.8" opacity="0.6"/>
+        <text x="55" y="30" text-anchor="middle" font-family="Inter,sans-serif" font-size="7.5" font-weight="600" fill="#f9a825" letter-spacing="2.5">EDUCATION</text>
+      </svg>
+    </a>
+    <span class="nav-brand">Homework</span>
+    <div class="nav-right">
+      <span id="nav-username" class="nav-username"></span>
+      <button id="manage-students-btn" class="nav-btn hidden">� Students</button>
+      <button id="add-hw-btn" class="nav-btn primary hidden">+ Assignment</button>
+
+    </div>
+  </nav>
+
+  <main class="content">
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="pending">Pending</button>
+      <button class="filter-btn" data-filter="done">Done</button>
+    </div>
+    <div id="hw-list" class="hw-list"></div>
+    <div id="hw-empty" class="empty-state hidden">No assignments here.</div>
+  </main>
+
+  <!-- Add/Edit Modal (teacher) -->
+  <div id="hw-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3 id="modal-title">New Assignment</h3>
+
+      <label>Subject</label>
+      <input type="text" id="hw-subject" placeholder="e.g. Math, Science" />
+
+      <label>Title</label>
+      <input type="text" id="hw-title-input" placeholder="Assignment title" />
+
+      <label>Due Date</label>
+      <input type="date" id="hw-due" />
+
+      <label>Practice Page Link <span class="optional">(optional)</span></label>
+      <input type="text" id="hw-practice" placeholder="e.g. practice-g9-winter-1.html" />
+
+      <label>Google Doc Link <span class="optional">(optional)</span></label>
+      <input type="url" id="hw-doc" placeholder="https://docs.google.com/..." />
+
+      <label>Notes <span class="optional">(optional)</span></label>
+      <textarea id="hw-notes" placeholder="Any extra notes..."></textarea>
+
+      <label>Assign To <span class="optional">(leave blank for all students)</span></label>
+      <input type="text" id="hw-assign" placeholder="e.g. alice, bob  (comma-separated usernames)" />
+
+      <div class="modal-actions">
+        <button id="hw-cancel">Cancel</button>
+        <button id="hw-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Modal -->
+  <div id="view-modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="view-header">
+        <div>
+          <div id="view-subject" class="view-subject"></div>
+          <h3 id="view-title"></h3>
+        </div>
+        <button id="view-close">×</button>
+      </div>
+      <div id="view-due" class="view-meta"></div>
+      <div id="view-notes" class="view-notes"></div>
+      <div class="modal-actions">
+        <button id="view-edit" class="hidden">Edit</button>
+        <a id="view-practice-link" href="#" target="_blank" rel="noopener noreferrer" class="primary btn-link hidden">📝 Open Practice</a>
+        <a id="view-doc-link" href="#" target="_blank" rel="noopener noreferrer" class="primary btn-link hidden">Open Doc</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Student Management Modal (teacher only) -->
+  <div id="student-modal" class="modal hidden">
+    <div class="modal-card" style="max-width:460px;">
+      <div class="view-header">
+        <h3>Manage Students</h3>
+        <button id="student-close">×</button>
+      </div>
+
+      <div id="student-list" class="student-list"></div>
+
+      <div class="student-add-form">
+        <div class="student-add-title">Add Student</div>
+        <input type="text" id="new-student-name" placeholder="Full name" />
+        <input type="text" id="new-student-user" placeholder="Username (no spaces)" />
+        <input type="password" id="new-student-pass" placeholder="Password" />
+        <button id="add-student-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;background:#1c69d4;color:white;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;">Add Student</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

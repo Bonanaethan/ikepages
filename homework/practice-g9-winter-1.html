@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MathMind G9 — Winter Practice 1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+    onload="renderMathInElement(document.body,{delimiters:[{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}]})"></script>
+  <link rel="stylesheet" href="practice.css?v=5" />
+</head>
+<body>
+
+<nav>
+  <a href="index.html" class="nav-back">&#8592; Homework</a>
+  <span class="nav-title">MathMind G9 &middot; Winter Practice 1</span>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span class="nav-score" id="nav-score">0 / 0 correct</span>
+    <button id="wb-toggle" style="background:rgba(77,159,255,0.15);border:1px solid rgba(77,159,255,0.3);color:#4d9fff;border-radius:6px;padding:6px 12px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;white-space:nowrap;">&#9998; Whiteboard</button>
+  </div>
+</nav>
+
+<main>
+  <div class="page-header">
+    <h1>Grade 9 &mdash; <span>Winter Practice 1</span></h1>
+    <p>MathMind &middot; Ontario Curriculum</p>
+    <div class="topic-tags">
+      <span class="tag">Algebraic Identities</span>
+      <span class="tag">Perfect Squares</span>
+      <span class="tag">Difference of Squares</span>
+      <span class="tag">Factoring</span>
+    </div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar-fill" id="progress-fill"></div>
+  </div>
+
+  <!-- Q1 -->
+  <div class="q-card" id="qcard-1">
+    <div class="q-header"><span class="q-num">Q1</span>
+      <div class="q-text">
+        <p>Use the figure below to prove that \((a+b)^2 = a^2 + 2ab + b^2\) without expanding algebraically.</p>
+        <p class="hint">Imagine a square with side \((a+b)\) divided into four regions: an \(a\times a\) square, a \(b\times b\) square, and two \(a\times b\) rectangles.</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <textarea class="answer-textarea" id="ans-1" placeholder="Describe the geometric proof in your own words..."></textarea>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="1">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-1"><div class="solution" id="sol-1"></div></div>
+    </div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="q-card" id="qcard-2">
+    <div class="q-header"><span class="q-num">Q2</span>
+      <div class="q-text">
+        <p>Compute \(31^2\) and \(299^2\) in your head.</p>
+        <p class="hint">Hint: use \((a+b)^2\) or \((a-b)^2\).</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <div class="sub-inputs">
+        <div>
+          <div class="input-label">\(31^2 =\)</div>
+          <div class="answer-row">
+            <input class="answer-input" id="ans-2a" type="text" placeholder="your answer" />
+            <button class="check-btn" data-id="2a">Check</button>
+          </div>
+          <div class="feedback" id="fb-2a"></div>
+        </div>
+        <div>
+          <div class="input-label">\(299^2 =\)</div>
+          <div class="answer-row">
+            <input class="answer-input" id="ans-2b" type="text" placeholder="your answer" />
+            <button class="check-btn" data-id="2b">Check</button>
+          </div>
+          <div class="feedback" id="fb-2b"></div>
+        </div>
+      </div>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="2">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-2"><div class="solution" id="sol-2"></div></div>
+    </div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="q-card" id="qcard-3">
+    <div class="q-header"><span class="q-num">Q3</span>
+      <div class="q-text">
+        <p>We can square a number ending in 5 using these steps:</p>
+        <ol>
+          <li>Erase the 5 at the end to get a number \(k\).</li>
+          <li>Multiply \(k\) by \(k+1\) and append \(25\) to the end of the product.</li>
+        </ol>
+        <p class="hint">Example: \(65^2 = 4225\) because \(6 \times 7 = 42\), then append \(25\).</p>
+      </div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part a &mdash; Apply the trick</div>
+      <div class="sub-inputs">
+        <div>
+          <div class="input-label">\(45^2 =\)</div>
+          <div class="answer-row">
+            <input class="answer-input" id="ans-3a" type="text" placeholder="your answer" />
+            <button class="check-btn" data-id="3a">Check</button>
+          </div>
+          <div class="feedback" id="fb-3a"></div>
+        </div>
+        <div>
+          <div class="input-label">\(95^2 =\)</div>
+          <div class="answer-row">
+            <input class="answer-input" id="ans-3b" type="text" placeholder="your answer" />
+            <button class="check-btn" data-id="3b">Check</button>
+          </div>
+          <div class="feedback" id="fb-3b"></div>
+        </div>
+        <div>
+          <div class="input-label">\(115^2 =\)</div>
+          <div class="answer-row">
+            <input class="answer-input" id="ans-3c" type="text" placeholder="your answer" />
+            <button class="check-btn" data-id="3c">Check</button>
+          </div>
+          <div class="feedback" id="fb-3c"></div>
+        </div>
+      </div>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="3a-full">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-3a-full"><div class="solution" id="sol-3a-full"></div></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part b &mdash; Explain why it works</div>
+      <p class="q-text" style="font-size:14px;margin-bottom:12px;">Use the expansion of \((10n+5)^2\) to explain why this trick always works.</p>
+      <textarea class="answer-textarea" id="ans-3d" placeholder="Expand (10n+5)² and explain..."></textarea>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="3d">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-3d"><div class="solution" id="sol-3d"></div></div>
+    </div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="q-card" id="qcard-4">
+    <div class="q-header"><span class="q-num">Q4</span>
+      <div class="q-text">
+        <p>Compute:</p>
+        <p>\(199919981997^2 - 2 \cdot 199919981994^2 + 199919981991^2\)</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <div class="answer-row">
+        <input class="answer-input" id="ans-4" type="text" placeholder="your answer" />
+        <button class="check-btn" data-id="4">Check</button>
+      </div>
+      <div class="feedback" id="fb-4"></div>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="4-sol">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-4-sol"><div class="solution" id="sol-4-sol"></div></div>
+    </div>
+  </div>
+
+  <!-- Q5 -->
+  <div class="q-card" id="qcard-5">
+    <div class="q-header"><span class="q-num">Q5</span>
+      <div class="q-text"><p>Factor each expression completely.</p></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part a</div>
+      <p class="q-text mb10">\(t^2 - 49\)</p>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-5a" type="text" placeholder="e.g. (t+7)(t-7)" />
+        <button class="check-btn" data-id="5a">Check</button>
+      </div>
+      <div class="feedback" id="fb-5a"></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part b</div>
+      <p class="q-text mb10">\(36 - 9x^2\)</p>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-5b" type="text" placeholder="e.g. 9(2+x)(2-x)" />
+        <button class="check-btn" data-id="5b">Check</button>
+      </div>
+      <div class="feedback" id="fb-5b"></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part c</div>
+      <p class="q-text mb10">\(121a^2b^4 - c^2\)</p>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-5c" type="text" placeholder="e.g. (11ab^2+c)(11ab^2-c)" />
+        <button class="check-btn" data-id="5c">Check</button>
+      </div>
+      <div class="feedback" id="fb-5c"></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part d</div>
+      <p class="q-text mb10">\(800x^4 - 72x^2y^2\)</p>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-5d" type="text" placeholder="e.g. 8x^2(10x+3y)(10x-3y)" />
+        <button class="check-btn" data-id="5d">Check</button>
+      </div>
+      <div class="feedback" id="fb-5d"></div>
+    </div>
+    <div class="answer-row mt10">
+      <button class="reveal-btn" data-id="5-sol">Show Solution</button>
+    </div>
+    <div class="feedback" id="fb-5-sol"><div class="solution" id="sol-5-sol"></div></div>
+  </div>
+
+  <!-- Q6 -->
+  <div class="q-card" id="qcard-6">
+    <div class="q-header"><span class="q-num">Q6</span>
+      <div class="q-text">
+        <p>Given that \(55555^2 = 3086358025\), calculate \(55556^2\) without a calculator.</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <div class="answer-row">
+        <input class="answer-input" id="ans-6" type="text" placeholder="your answer" />
+        <button class="check-btn" data-id="6">Check</button>
+      </div>
+      <div class="feedback" id="fb-6"></div>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="6-sol">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-6-sol"><div class="solution" id="sol-6-sol"></div></div>
+    </div>
+  </div>
+
+  <!-- Q7 -->
+  <div class="q-card" id="qcard-7">
+    <div class="q-header"><span class="q-num">Q7</span>
+      <div class="q-text"><p>Answer without a calculator.</p></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part a &mdash; Are \(3^8\) and \(2^6\) perfect squares?</div>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-7a" type="text" placeholder='e.g. "yes, yes"' style="max-width:240px;" />
+        <button class="check-btn" data-id="7a">Check</button>
+      </div>
+      <div class="feedback" id="fb-7a"></div>
+    </div>
+    <div class="sub-q">
+      <div class="sub-q-label">Part b &mdash; Prime factorization of \(3^8 - 2^6\)</div>
+      <div class="answer-row">
+        <input class="answer-input" id="ans-7b" type="text" placeholder="e.g. 73 x 89" style="max-width:300px;" />
+        <button class="check-btn" data-id="7b">Check</button>
+      </div>
+      <div class="feedback" id="fb-7b"></div>
+    </div>
+    <div class="answer-row mt10">
+      <button class="reveal-btn" data-id="7-sol">Show Solution</button>
+    </div>
+    <div class="feedback" id="fb-7-sol"><div class="solution" id="sol-7-sol"></div></div>
+  </div>
+
+  <!-- Q8 -->
+  <div class="q-card" id="qcard-8">
+    <div class="q-header"><span class="q-num">Q8</span>
+      <div class="q-text">
+        <p>Factor \(\omega^4 - 16\) as much as possible.</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <div class="answer-row">
+        <input class="answer-input" id="ans-8" type="text" placeholder="e.g. (w^2+4)(w+2)(w-2)" />
+        <button class="check-btn" data-id="8">Check</button>
+      </div>
+      <div class="feedback" id="fb-8"></div>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="8-sol">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-8-sol"><div class="solution" id="sol-8-sol"></div></div>
+    </div>
+  </div>
+
+  <!-- Q9 -->
+  <div class="q-card" id="qcard-9">
+    <div class="q-header"><span class="q-num">Q9</span>
+      <div class="q-text">
+        <p>Find all pairs of positive integers \(m\) and \(n\) such that \(m^2\) is 105 greater than \(n^2\).</p>
+        <p class="hint">Hint: factor \(m^2 - n^2\) and find factor pairs of 105.</p>
+      </div>
+    </div>
+    <div class="answer-area">
+      <textarea class="answer-textarea" id="ans-9" placeholder="List all (m, n) pairs and explain your reasoning..."></textarea>
+      <div class="answer-row mt10">
+        <button class="reveal-btn" data-id="9">Show Solution</button>
+      </div>
+      <div class="feedback" id="fb-9"><div class="solution" id="sol-9"></div></div>
+    </div>
+  </div>
+
+  <!-- Submit -->
+  <div style="text-align:center;margin:8px 0 32px;">
+    <button id="submit-btn" class="check-btn" style="padding:13px 40px;font-size:15px;border-radius:10px;">Submit Practice</button>
+  </div>
+
+  <!-- Score summary -->
+  <div id="score-summary">
+    <h2>Practice Complete</h2>
+    <div class="score-big" id="final-score">&#8212;</div>
+    <p id="final-msg"></p>
+    <button class="reset-btn" id="reset-btn">Try Again</button>
+  </div>
+
+</main>
+
+<!-- Whiteboard panel -->
+<div id="wb-panel">
+  <div id="wb-header">
+    <span style="font-weight:600;font-size:13px;color:#e8eaf0;">Whiteboard</span>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="color" id="wb-color" value="#f9a825" title="Pen color" style="width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;" />
+      <select id="wb-size" style="background:#222536;border:1px solid #2e3248;color:#e8eaf0;border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;cursor:pointer;">
+        <option value="2">Thin</option>
+        <option value="4" selected>Medium</option>
+        <option value="8">Thick</option>
+        <option value="16">Marker</option>
+      </select>
+      <button id="wb-eraser" style="background:#222536;border:1px solid #2e3248;color:#e8eaf0;border-radius:5px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;">Eraser</button>
+      <button id="wb-clear" style="background:#222536;border:1px solid #2e3248;color:#f87171;border-radius:5px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;">Clear</button>
+      <button id="wb-close" style="background:none;border:none;color:#6b7280;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">&#215;</button>
+    </div>
+  </div>
+  <canvas id="wb-canvas"></canvas>
+</div>
+
+<style>
+#wb-panel {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  width: 520px; height: 380px;
+  background: #1a1d27;
+  border: 1px solid #2e3248;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  display: none;
+  flex-direction: column;
+  z-index: 500;
+  overflow: hidden;
+  resize: both;
+}
+#wb-panel.open { display: flex; }
+#wb-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #2e3248;
+  background: #222536;
+  flex-shrink: 0;
+  cursor: move;
+  user-select: none;
+}
+#wb-canvas {
+  flex: 1; width: 100%; display: block;
+  cursor: crosshair; background: #0f1117;
+}
+</style>
+
+<script>
+(function() {
+  // ---- Answer data ----
+  var ANSWERS = {
+    '2a': { accepted: ['961'],       solution: '\\((30+1)^2 = 900+60+1 = 961\\)' },
+    '2b': { accepted: ['89401'],     solution: '\\((300-1)^2 = 90000-600+1 = 89401\\)' },
+    '3a': { accepted: ['2025'],      solution: '\\(k=4,\\ 4\\times5=20\\), append 25 → 2025' },
+    '3b': { accepted: ['9025'],      solution: '\\(k=9,\\ 9\\times10=90\\), append 25 → 9025' },
+    '3c': { accepted: ['13225'],     solution: '\\(k=11,\\ 11\\times12=132\\), append 25 → 13225' },
+    '4':  { accepted: ['18'],        solution: 'Let \\(a=199919981994\\). Then \\((a+3)^2-2a^2+(a-3)^2 = 18\\).' },
+    '5a': { accepted: ['(t+7)(t-7)','(t-7)(t+7)'], solution: '\\(t^2-7^2=(t+7)(t-7)\\)' },
+    '5b': { accepted: ['9(2+x)(2-x)','9(2-x)(2+x)','-9(x+2)(x-2)','-9(x-2)(x+2)'], solution: '\\(9(4-x^2)=9(2+x)(2-x)\\)' },
+    '5c': { accepted: ['(11ab^2+c)(11ab^2-c)','(11ab^2-c)(11ab^2+c)'], solution: '\\((11ab^2+c)(11ab^2-c)\\)' },
+    '5d': { accepted: ['8x^2(10x+3y)(10x-3y)','8x^2(10x-3y)(10x+3y)'], solution: '\\(8x^2(10x+3y)(10x-3y)\\)' },
+    '6':  { accepted: ['3086469136'], solution: '\\(55555^2+2\\cdot55555+1=3086469136\\)' },
+    '7a': { accepted: ['yes,yes','yesyes','bothyes','yesandyes'], solution: '\\(3^8=(3^4)^2\\) and \\(2^6=(2^3)^2\\) — both perfect squares.' },
+    '7b': { accepted: ['73x89','73*89','89x73','89*73','73×89','89×73'], solution: '\\((3^4+2^3)(3^4-2^3)=89\\times73\\)' },
+    '8':  { accepted: ['(w^2+4)(w+2)(w-2)','(w^2+4)(w-2)(w+2)'], solution: '\\((\\omega^2+4)(\\omega+2)(\\omega-2)\\)' }
+  };
+
+  var SOLUTIONS = {
+    '1': '<strong>Geometric proof:</strong><br>Draw a square with side \\((a+b)\\). Partition into 4 pieces:<br>&bull; \\(a\\times a\\) square → area \\(a^2\\)<br>&bull; \\(b\\times b\\) square → area \\(b^2\\)<br>&bull; Two \\(a\\times b\\) rectangles → area \\(2ab\\)<br><br>Total: \\((a+b)^2 = a^2+2ab+b^2\\) ✓',
+    '2': '<strong>Mental squaring:</strong><br>\\(31^2=(30+1)^2=900+60+1=\\mathbf{961}\\)<br><br>\\(299^2=(300-1)^2=90000-600+1=\\mathbf{89401}\\)',
+    '3a-full': '<strong>Ends-in-5 trick:</strong><br>\\(45^2\\): \\(4\\times5=20\\) → \\(\\mathbf{2025}\\)<br>\\(95^2\\): \\(9\\times10=90\\) → \\(\\mathbf{9025}\\)<br>\\(115^2\\): \\(11\\times12=132\\) → \\(\\mathbf{13225}\\)',
+    '3d': '<strong>Why it works:</strong><br>\\((10n+5)^2=100n^2+100n+25=100n(n+1)+25\\)<br>This is \\(n(n+1)\\) followed by 25 in decimal — exactly the trick. ✓',
+    '4-sol': '<strong>Large number computation:</strong><br>Let \\(a=199919981994\\).<br>\\((a+3)^2-2a^2+(a-3)^2 = a^2+6a+9-2a^2+a^2-6a+9 = \\mathbf{18}\\)',
+    '5-sol': '<strong>Factoring:</strong><br><b>a)</b> \\((t+7)(t-7)\\)<br><b>b)</b> \\(9(2+x)(2-x)\\)<br><b>c)</b> \\((11ab^2+c)(11ab^2-c)\\)<br><b>d)</b> \\(8x^2(10x+3y)(10x-3y)\\)',
+    '6-sol': '<strong>Using a known square:</strong><br>\\(55556^2=55555^2+2\\cdot55555+1=3086358025+111110+1=\\mathbf{3086469136}\\)',
+    '7-sol': '<strong>Perfect squares:</strong><br><b>a)</b> \\(3^8=(3^4)^2\\) ✓ and \\(2^6=(2^3)^2\\) ✓<br><b>b)</b> \\(3^8-2^6=(3^4+2^3)(3^4-2^3)=89\\times73\\). Both prime → \\(\\mathbf{73\\times89}\\)',
+    '8-sol': '<strong>Repeated difference of squares:</strong><br>\\(\\omega^4-16=(\\omega^2+4)(\\omega^2-4)=(\\omega^2+4)(\\omega+2)(\\omega-2)\\)',
+    '9': '<strong>All integer pairs:</strong><br>\\((m+n)(m-n)=105\\). Factor pairs of 105 (both odd):<br>&bull; \\(105\\times1\\) → \\(m=53,n=52\\)<br>&bull; \\(35\\times3\\) → \\(m=19,n=16\\)<br>&bull; \\(21\\times5\\) → \\(m=13,n=8\\)<br>&bull; \\(15\\times7\\) → \\(m=11,n=4\\)'
+  };
+
+  var CHECKABLE = Object.keys(ANSWERS);
+  var answered = new Set();
+  var correct  = new Set();
+
+  function norm(s) {
+    return s.trim().toLowerCase()
+      .replace(/\s+/g,'').replace(/[x×]/g,'*')
+      .replace(/²/g,'^2').replace(/³/g,'^3').replace(/ω/g,'w');
+  }
+
+  function rerender(el) {
+    if (window.renderMathInElement) {
+      renderMathInElement(el, { delimiters: [{left:'\\(',right:'\\)',display:false}] });
+    }
+  }
+
+  function checkAnswer(id) {
+    var input = document.getElementById('ans-' + id);
+    var fb    = document.getElementById('fb-' + id);
+    if (!input || input.disabled) return;
+    var val = norm(input.value);
+    if (!val) { input.focus(); return; }
+    var data = ANSWERS[id];
+    var ok   = data.accepted.map(norm).indexOf(val) !== -1;
+    input.disabled = true;
+    input.classList.add(ok ? 'correct' : 'wrong');
+    fb.className = 'feedback show ' + (ok ? 'correct-fb' : 'wrong-fb');
+    fb.innerHTML = ok ? '&#10003; Correct!' : '&#10007; Not quite. <div class="solution">' + data.solution + '</div>';
+    var btn = document.querySelector('.check-btn[data-id="' + id + '"]');
+    if (btn) btn.disabled = true;
+    answered.add(id);
+    if (ok) correct.add(id);
+    rerender(fb);
+    updateProgress();
+  }
+
+  function revealSolution(id) {
+    var fb  = document.getElementById('fb-' + id);
+    var sol = document.getElementById('sol-' + id);
+    if (!fb || !sol) return;
+    sol.innerHTML = SOLUTIONS[id] || '';
+    fb.className = 'feedback show';
+    var btn = document.querySelector('.reveal-btn[data-id="' + id + '"]');
+    if (btn) { btn.textContent = 'Hide Solution'; btn.dataset.open = '1'; }
+    rerender(fb);
+  }
+
+  function hideSolution(id) {
+    var fb  = document.getElementById('fb-' + id);
+    var sol = document.getElementById('sol-' + id);
+    if (!fb || !sol) return;
+    sol.innerHTML = '';
+    fb.className = 'feedback';
+    var btn = document.querySelector('.reveal-btn[data-id="' + id + '"]');
+    if (btn) { btn.textContent = 'Show Solution'; btn.dataset.open = ''; }
+  }
+
+  function updateProgress() {
+    var total = CHECKABLE.length;
+    var pct   = total ? (answered.size / total) * 100 : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('nav-score').textContent = correct.size + ' / ' + answered.size + ' correct';
+    if (answered.size === total) showSummary();
+  }
+
+  function showSummary() {
+    var total = CHECKABLE.length;
+    var pct   = Math.round((correct.size / total) * 100);
+    document.getElementById('final-score').textContent = correct.size + ' / ' + total;
+    document.getElementById('final-msg').textContent =
+      pct === 100 ? 'Perfect score — well done!' :
+      pct >= 70   ? 'Great work. Review the ones you missed.' :
+                    "Keep practising — you'll get there.";
+    var s = document.getElementById('score-summary');
+    s.classList.add('show');
+    s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function resetAll() {
+    answered.clear(); correct.clear();
+    document.querySelectorAll('.answer-input').forEach(function(el) { el.disabled=false; el.value=''; el.className='answer-input'; });
+    document.querySelectorAll('.answer-textarea').forEach(function(el) { el.value=''; });
+    document.querySelectorAll('.feedback').forEach(function(el) { el.className='feedback'; el.innerHTML=''; });
+    document.querySelectorAll('.check-btn').forEach(function(el) { el.disabled=false; });
+    document.querySelectorAll('.reveal-btn').forEach(function(el) { el.textContent='Show Solution'; el.dataset.open=''; });
+    document.getElementById('score-summary').classList.remove('show');
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('nav-score').textContent = '0 / 0 correct';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('check-btn') && e.target.dataset.id) checkAnswer(e.target.dataset.id);
+    if (e.target.classList.contains('reveal-btn')) {
+      e.target.dataset.open === '1' ? hideSolution(e.target.dataset.id) : revealSolution(e.target.dataset.id);
+    }
+    if (e.target.id === 'reset-btn') resetAll();
+    if (e.target.id === 'submit-btn') {
+      showSummary();
+      // Mark the built-in assignment as done in localStorage
+      try {
+        var hw = JSON.parse(localStorage.getItem('mm_homework') || '[]');
+        localStorage.setItem('mm_homework', JSON.stringify(hw));
+        // Store completion flag for the builtin
+        var done = JSON.parse(localStorage.getItem('mm_builtin_done') || '{}');
+        done['__builtin_g9w1__'] = true;
+        localStorage.setItem('mm_builtin_done', JSON.stringify(done));
+      } catch(err) {}
+    }
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.classList.contains('answer-input')) {
+      checkAnswer(e.target.id.replace('ans-', ''));
+    }
+  });
+
+  // ---- Whiteboard ----
+  var panel    = document.getElementById('wb-panel');
+  var canvas   = document.getElementById('wb-canvas');
+  var ctx      = canvas.getContext('2d');
+  var toggle   = document.getElementById('wb-toggle');
+  var wbClose  = document.getElementById('wb-close');
+  var wbClear  = document.getElementById('wb-clear');
+  var wbEraser = document.getElementById('wb-eraser');
+  var wbColor  = document.getElementById('wb-color');
+  var wbSize   = document.getElementById('wb-size');
+  var drawing  = false, erasing = false, lastX = 0, lastY = 0;
+
+  function initCanvas() {
+    canvas.width  = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+
+  toggle.addEventListener('click', function() {
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) setTimeout(initCanvas, 10);
+  });
+  wbClose.addEventListener('click', function() { panel.classList.remove('open'); });
+  wbClear.addEventListener('click', function() { ctx.clearRect(0, 0, canvas.width, canvas.height); });
+  wbEraser.addEventListener('click', function() {
+    erasing = !erasing;
+    wbEraser.style.background = erasing ? '#4d9fff' : '#222536';
+    wbEraser.style.color = erasing ? '#fff' : '#e8eaf0';
+  });
+
+  function getPos(e) {
+    var r = canvas.getBoundingClientRect();
+    if (e.touches) return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  canvas.addEventListener('mousedown',  function(e) { drawing=true; var p=getPos(e); lastX=p.x; lastY=p.y; });
+  canvas.addEventListener('mousemove',  function(e) {
+    if (!drawing) return;
+    var p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle = erasing ? '#0f1117' : wbColor.value;
+    ctx.lineWidth   = erasing ? parseInt(wbSize.value)*4 : parseInt(wbSize.value);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+    lastX=p.x; lastY=p.y;
+  });
+  canvas.addEventListener('mouseup',    function() { drawing=false; });
+  canvas.addEventListener('mouseleave', function() { drawing=false; });
+  canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing=true; var p=getPos(e); lastX=p.x; lastY=p.y; }, {passive:false});
+  canvas.addEventListener('touchmove',  function(e) {
+    e.preventDefault();
+    if (!drawing) return;
+    var p = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y);
+    ctx.strokeStyle = erasing ? '#0f1117' : wbColor.value;
+    ctx.lineWidth   = erasing ? parseInt(wbSize.value)*4 : parseInt(wbSize.value);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.stroke();
+    lastX=p.x; lastY=p.y;
+  }, {passive:false});
+  canvas.addEventListener('touchend', function() { drawing=false; });
+
+  // Drag header
+  var wbHeader = document.getElementById('wb-header');
+  var dragging = false, ox = 0, oy = 0;
+  wbHeader.addEventListener('mousedown', function(e) {
+    if (['BUTTON','INPUT','SELECT'].indexOf(e.target.tagName) !== -1) return;
+    dragging=true; ox=e.clientX-panel.getBoundingClientRect().left; oy=e.clientY-panel.getBoundingClientRect().top;
+  });
+  document.addEventListener('mousemove', function(e) {
+    if (!dragging) return;
+    panel.style.right='auto'; panel.style.bottom='auto';
+    panel.style.left=(e.clientX-ox)+'px'; panel.style.top=(e.clientY-oy)+'px';
+  });
+  document.addEventListener('mouseup', function() { dragging=false; });
+
+  if (window.ResizeObserver) new ResizeObserver(initCanvas).observe(panel);
+})();
+</script>
+</body>
+</html>
