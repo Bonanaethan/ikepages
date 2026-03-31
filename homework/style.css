@@ -50,6 +50,8 @@ body {
 .ikids-link:hover svg { opacity: 0.8; transform: scale(1.04); }
 
 .nav-back { color: var(--muted); text-decoration: none; font-size: 13px; transition: color 0.2s; white-space: nowrap; }
+.back-link { color: var(--muted); text-decoration: none; font-size: 13px; transition: color 0.2s; white-space: nowrap; }
+.back-link:hover { color: var(--yellow); }
 .nav-back:hover { color: var(--accent); }
 
 .nav-brand {
