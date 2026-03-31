@@ -81,7 +81,7 @@ body {
 
 /* ---- GREETING ---- */
 .greeting-card {
-  background: linear-gradient(120deg, #1a3a6b 0%, #0f2244 60%, #2a1a00 100%);
+  background: linear-gradient(120deg, #1a3a6b 0%, #1c69d4 100%);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 36px 40px;
