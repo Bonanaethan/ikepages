@@ -262,3 +262,16 @@ if (AUTH.isTeacher()) {
   const link = document.getElementById('teacher-link');
   if (link) link.style.display = '';
 }
+
+// Load profile for students — redirect to setup if missing, else show first name
+(async () => {
+  if (!AUTH.isTeacher()) {
+    const profile = await AUTH.api('GET', '/profile');
+    if (!profile.firstName) {
+      window.location.href = '../profile/index.html';
+      return;
+    }
+    updateGreeting(profile.firstName);
+    document.getElementById('nav-username').textContent = profile.firstName + ' ' + profile.lastName;
+  }
+})();

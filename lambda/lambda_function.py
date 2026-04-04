@@ -152,4 +152,33 @@ def lambda_handler(event, context):
         table.delete_item(Key={'pk': 'HANDOUT', 'sk': item_id})
         return resp(200, {'message': 'Deleted'})
 
+    # GET /profile — get current user's profile
+    if method == 'GET' and path == '/prod/profile':
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            result = table.get_item(Key={'pk': 'PROFILE', 'sk': username})
+            return resp(200, result.get('Item', {}))
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # POST /profile — save current user's profile
+    if method == 'POST' and path == '/prod/profile':
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            body = json.loads(event.get('body') or '{}')
+            if not body.get('firstName') or not body.get('lastName') or not body.get('dob'):
+                return resp(400, {'error': 'Missing fields'})
+            table.put_item(Item={
+                'pk': 'PROFILE', 'sk': username,
+                'firstName': body['firstName'],
+                'lastName': body['lastName'],
+                'dob': body['dob'],
+                'updatedAt': datetime.now(timezone.utc).isoformat()
+            })
+            return resp(200, {'message': 'Profile saved'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
     return resp(404, {'error': 'Not found'})
