@@ -252,3 +252,9 @@ startClock();
 loadWeather();
 initBookmarks();
 initCustomizer();
+
+// Show teacher link if user is a teacher
+if (AUTH.isTeacher()) {
+  const link = document.getElementById('teacher-link');
+  if (link) link.style.display = '';
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="../auth.js"></script>
+  <script>
+    AUTH.requireAuth();
+    if (!AUTH.isTeacher()) window.location.href = '../main/index.html';
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <nav class="navbar">
+    <span class="nav-brand">Teacher Dashboard</span>
+    <div class="nav-right">
+      <span id="nav-username"></span>
+      <button onclick="AUTH.logout()" class="nav-btn">⏻ Logout</button>
+    </div>
+  </nav>
+
+  <main class="content">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="students">Students</button>
+      <button class="tab-btn" data-tab="assignments">Assignments</button>
+      <button class="tab-btn" data-tab="handouts">Handouts</button>
+    </div>
+
+    <!-- Students Tab -->
+    <div id="tab-students" class="tab-panel active">
+      <div class="panel-header">
+        <h2>Students</h2>
+        <button class="btn primary" id="add-student-btn">+ Add Student</button>
+      </div>
+      <div id="students-list" class="card-list"></div>
+
+      <div id="add-student-form" class="form-card hidden">
+        <h3>Create Student Account</h3>
+        <input type="text" id="s-username" placeholder="Username" />
+        <input type="email" id="s-email" placeholder="Email" />
+        <input type="password" id="s-password" placeholder="Password" />
+        <div class="form-actions">
+          <button class="btn" id="s-cancel">Cancel</button>
+          <button class="btn primary" id="s-save">Create</button>
+        </div>
+        <p id="s-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- Assignments Tab -->
+    <div id="tab-assignments" class="tab-panel hidden">
+      <div class="panel-header">
+        <h2>Assignments</h2>
+        <button class="btn primary" id="add-assignment-btn">+ Add Assignment</button>
+      </div>
+      <div id="assignments-list" class="card-list"></div>
+
+      <div id="add-assignment-form" class="form-card hidden">
+        <h3>New Assignment</h3>
+        <input type="text" id="a-title" placeholder="Title" />
+        <textarea id="a-desc" placeholder="Description"></textarea>
+        <input type="date" id="a-due" />
+        <div class="form-actions">
+          <button class="btn" id="a-cancel">Cancel</button>
+          <button class="btn primary" id="a-save">Create</button>
+        </div>
+        <p id="a-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- Handouts Tab -->
+    <div id="tab-handouts" class="tab-panel hidden">
+      <div class="panel-header">
+        <h2>Handouts</h2>
+        <button class="btn primary" id="add-handout-btn">+ Add Handout</button>
+      </div>
+      <div id="handouts-list" class="card-list"></div>
+
+      <div id="add-handout-form" class="form-card hidden">
+        <h3>New Handout</h3>
+        <input type="text" id="h-title" placeholder="Title" />
+        <input type="url" id="h-url" placeholder="URL (optional)" />
+        <textarea id="h-desc" placeholder="Description"></textarea>
+        <div class="form-actions">
+          <button class="btn" id="h-cancel">Cancel</button>
+          <button class="btn primary" id="h-save">Create</button>
+        </div>
+        <p id="h-msg" class="msg"></p>
+      </div>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
