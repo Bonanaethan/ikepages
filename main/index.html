@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=5" />
+  <script src="../auth.js"></script>
+  <script>AUTH.requireAuth();</script>
 </head>
 <body>
 
@@ -26,6 +28,7 @@
       <div class="nav-user">
         <span id="nav-username"></span>
         <button id="customize-btn" title="Customize">⚙ Customize</button>
+        <button onclick="AUTH.logout()" id="logout-btn" title="Logout">⏻ Logout</button>
       </div>
     </nav>
 

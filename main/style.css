@@ -70,6 +70,19 @@ body {
 }
 #customize-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+#logout-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s, color 0.2s;
+}
+#logout-btn:hover { border-color: #e05252; color: #e05252; }
+
 /* ---- DASHBOARD ---- */
 #dashboard { min-height: 100vh; }
 
