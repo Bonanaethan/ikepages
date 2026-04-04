@@ -190,9 +190,11 @@ function applySettings(s) {
   document.body.dataset.bg = s.bgStyle;
   document.querySelector('.clock-widget').style.display = s.showClock ? '' : 'none';
   document.querySelector('.weather-widget').style.display = s.showWeather ? '' : 'none';
-  if (s.displayName) {
-    updateGreeting(s.displayName);
-    document.getElementById('nav-username').textContent = s.displayName;
+  // Always use Cognito username, ignore saved displayName
+  const cognitoUsername = AUTH.getUser()?.['cognito:username'] || AUTH.getUser()?.email || '';
+  if (cognitoUsername) {
+    updateGreeting(cognitoUsername);
+    document.getElementById('nav-username').textContent = cognitoUsername;
   }
 }
 
