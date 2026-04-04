@@ -246,8 +246,10 @@ function weatherFromCode(code) {
 
 // ---- Init ----
 const settings = getSettings();
-document.getElementById('nav-username').textContent = settings.displayName || 'Ethan';
-updateGreeting(settings.displayName || 'Ethan');
+const cognitoUser = AUTH.getUser();
+const username = cognitoUser?.['cognito:username'] || cognitoUser?.email || settings.displayName || '';
+document.getElementById('nav-username').textContent = username;
+updateGreeting(username);
 startClock();
 loadWeather();
 initBookmarks();
