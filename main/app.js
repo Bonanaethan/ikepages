@@ -257,8 +257,8 @@ loadWeather();
 initBookmarks();
 initCustomizer();
 
-// Show teacher link if user is a teacher
-if (AUTH.isTeacher()) {
+// Show teacher link if user is a teacher or admin
+if (AUTH.isTeacher() || AUTH.isAdmin()) {
   const link = document.getElementById('teacher-link');
   if (link) link.style.display = '';
 }
