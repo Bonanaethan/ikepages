@@ -14,6 +14,14 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// ---- COURSES (shared, loaded early so users tab can use them) ----
+let allCourses = [];
+
+async function loadCourseOptions() {
+  const res = await AUTH.api('GET', '/admin/classes');
+  allCourses = Array.isArray(res) ? res : [];
+}
+
 // ---- USERS ----
 let allUsers = [];
 
@@ -21,7 +29,8 @@ async function loadUsers() {
   const list = document.getElementById('students-list');
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
   const endpoint = AUTH.isAdmin() ? '/admin/users' : '/users';
-  allUsers = await AUTH.api('GET', endpoint);
+  const res = await AUTH.api('GET', endpoint);
+  allUsers = Array.isArray(res) ? res : [];
   renderUsers();
 }
 
@@ -32,16 +41,36 @@ function renderUsers() {
   if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No users found.</p>'; return; }
   list.innerHTML = '';
   filtered.forEach(u => {
+    const courseOptions = allCourses.map(c =>
+      `<option value="${c.sk}">${c.name}</option>`
+    ).join('');
     const card = document.createElement('div');
     card.className = 'item-card';
     card.innerHTML = `
       <div class="item-card-info">
         <div class="item-card-title">${u.username}</div>
         <div class="item-card-sub">${u.email || ''} ${u.groups?.length ? '— ' + u.groups.join(', ') : ''}</div>
-      </div>`;
+      </div>
+      ${AUTH.isAdmin() && allCourses.length ? `
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="course-select-${u.username}" style="background:#222536;border:1px solid #2e3248;border-radius:6px;padding:6px 10px;color:#e8eaf0;font-size:12px;font-family:inherit;outline:none;cursor:pointer">
+          <option value="">Assign to course...</option>
+          ${courseOptions}
+        </select>
+        <button class="btn" onclick="assignToCourse('${u.username}')">Assign</button>
+      </div>` : ''}`;
     list.appendChild(card);
   });
 }
+
+window.assignToCourse = async (username) => {
+  const select = document.getElementById('course-select-' + username);
+  const courseId = select?.value;
+  if (!courseId) return;
+  await AUTH.api('POST', `/admin/classes/${courseId}/members`, { username });
+  select.value = '';
+  alert(`${username} added to course.`);
+};
 
 document.getElementById('group-filter')?.addEventListener('change', renderUsers);
 
@@ -128,7 +157,7 @@ async function loadHandouts() {
         <div class="item-card-title">${h.url ? `<a href="${h.url}" target="_blank" style="color:var(--yellow);text-decoration:none">${h.title}</a>` : h.title}</div>
         <div class="item-card-sub">${h.description || ''}</div>
       </div>
-      <button class="btn danger" data-id="${h.sk}">Delete</button>`;
+      <button class="btn danger">Delete</button>`;
     card.querySelector('.btn.danger').addEventListener('click', async () => {
       await AUTH.api('DELETE', '/handouts/' + h.sk);
       loadHandouts();
@@ -159,40 +188,18 @@ document.getElementById('h-save').addEventListener('click', async () => {
   loadHandouts();
 });
 
-// Initial load
-loadUsers();
-loadAssignments();
-loadHandouts();
-
-// ---- ADMIN ----
+// ---- COURSES TAB (admin only) ----
 if (AUTH.isAdmin()) {
   document.getElementById('admin-tab-btn').style.display = '';
 
-  async function loadAllUsers() {
-    const list = document.getElementById('users-list');
-    list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
-    const users = await AUTH.api('GET', '/admin/users');
-    if (!users.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No users found.</p>'; return; }
-    list.innerHTML = '';
-    users.forEach(u => {
-      const card = document.createElement('div');
-      card.className = 'item-card';
-      card.innerHTML = `
-        <div class="item-card-info">
-          <div class="item-card-title">${u.username}</div>
-          <div class="item-card-sub">${u.email} — ${u.groups.join(', ') || 'no group'}</div>
-        </div>`;
-      list.appendChild(card);
-    });
-  }
-
-  async function loadClasses() {
+  async function loadCourses() {
     const list = document.getElementById('classes-list');
     list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
-    const classes = await AUTH.api('GET', '/admin/classes');
-    if (!classes.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No classes yet.</p>'; return; }
+    const courses = await AUTH.api('GET', '/admin/classes');
+    allCourses = Array.isArray(courses) ? courses : [];
+    if (!allCourses.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No courses yet.</p>'; return; }
     list.innerHTML = '';
-    classes.forEach(c => {
+    allCourses.forEach(c => {
       const card = document.createElement('div');
       card.className = 'item-card';
       card.innerHTML = `
@@ -200,28 +207,14 @@ if (AUTH.isAdmin()) {
           <div class="item-card-title">${c.name}</div>
           <div class="item-card-sub">${c.members?.length || 0} member(s)</div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <input type="text" placeholder="Username to add" id="add-member-${c.sk}"
-            style="background:#222536;border:1px solid #2e3248;border-radius:6px;padding:6px 10px;color:#e8eaf0;font-size:12px;font-family:inherit;outline:none;width:160px" />
-          <button class="btn" onclick="addMember('${c.sk}')">Add</button>
-          <button class="btn danger" onclick="deleteClass('${c.sk}')">Delete</button>
-        </div>`;
+        <button class="btn danger" onclick="deleteCourse('${c.sk}')">Delete</button>`;
       list.appendChild(card);
     });
   }
 
-  window.addMember = async (classId) => {
-    const input = document.getElementById('add-member-' + classId);
-    const username = input.value.trim();
-    if (!username) return;
-    await AUTH.api('POST', `/admin/classes/${classId}/members`, { username });
-    input.value = '';
-    loadClasses();
-  };
-
-  window.deleteClass = async (classId) => {
-    await AUTH.api('DELETE', '/admin/classes/' + classId);
-    loadClasses();
+  window.deleteCourse = async (courseId) => {
+    await AUTH.api('DELETE', '/admin/classes/' + courseId);
+    loadCourses();
   };
 
   document.getElementById('add-class-btn').addEventListener('click', () => {
@@ -237,13 +230,18 @@ if (AUTH.isAdmin()) {
     msg.textContent = 'Saving...'; msg.className = 'msg';
     const res = await AUTH.api('POST', '/admin/classes', { name });
     if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
-    msg.textContent = 'Class created.'; msg.className = 'msg success';
+    msg.textContent = 'Course created.'; msg.className = 'msg success';
     document.getElementById('c-name').value = '';
-    loadClasses();
+    loadCourses();
   });
 
-  // Load admin data when tab is clicked
-  document.querySelector('[data-tab="courses"]').addEventListener('click', () => {
-    loadClasses();
-  });
+  document.querySelector('[data-tab="courses"]').addEventListener('click', loadCourses);
 }
+
+// Initial load
+(async () => {
+  if (AUTH.isAdmin()) await loadCourseOptions();
+  loadUsers();
+  loadAssignments();
+  loadHandouts();
+})();
