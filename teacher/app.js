@@ -200,14 +200,24 @@ if (AUTH.isAdmin()) {
     if (!allCourses.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No courses yet.</p>'; return; }
     list.innerHTML = '';
     allCourses.forEach(c => {
+      const members = c.members || [];
       const card = document.createElement('div');
       card.className = 'item-card';
+      card.style.flexDirection = 'column';
+      card.style.alignItems = 'flex-start';
+      card.style.gap = '10px';
       card.innerHTML = `
-        <div class="item-card-info">
-          <div class="item-card-title">${c.name}</div>
-          <div class="item-card-sub">${c.members?.length || 0} member(s)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%">
+          <div class="item-card-info">
+            <div class="item-card-title">${c.name}</div>
+            <div class="item-card-sub">${members.length} member(s)</div>
+          </div>
+          <button class="btn danger" onclick="deleteCourse('${c.sk}')">Delete</button>
         </div>
-        <button class="btn danger" onclick="deleteCourse('${c.sk}')">Delete</button>`;
+        ${members.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px;border-top:1px solid var(--border);width:100%">
+          ${members.map(m => `<span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:12px;color:var(--text)">${m}</span>`).join('')}
+        </div>` : ''}`;
       list.appendChild(card);
     });
   }
