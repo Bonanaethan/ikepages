@@ -25,6 +25,9 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color
 }
 .nav-btn:hover { border-color: var(--red); color: var(--red); }
 
+.back-link { color: var(--muted); text-decoration: none; font-size: 13px; transition: color 0.2s; }
+.back-link:hover { color: var(--yellow); }
+
 .content { max-width: 900px; margin: 0 auto; padding: 40px 24px 80px; }
 
 .tabs { display: flex; gap: 4px; margin-bottom: 28px; border-bottom: 1px solid var(--border); }
