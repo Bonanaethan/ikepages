@@ -14,24 +14,36 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// ---- STUDENTS ----
-async function loadStudents() {
+// ---- USERS ----
+let allUsers = [];
+
+async function loadUsers() {
   const list = document.getElementById('students-list');
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
-  const students = await AUTH.api('GET', '/users');
-  if (!students.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No students yet.</p>'; return; }
+  const endpoint = AUTH.isAdmin() ? '/admin/users' : '/users';
+  allUsers = await AUTH.api('GET', endpoint);
+  renderUsers();
+}
+
+function renderUsers() {
+  const list = document.getElementById('students-list');
+  const filter = document.getElementById('group-filter')?.value || 'all';
+  const filtered = filter === 'all' ? allUsers : allUsers.filter(u => (u.groups || []).includes(filter));
+  if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No users found.</p>'; return; }
   list.innerHTML = '';
-  students.forEach(s => {
+  filtered.forEach(u => {
     const card = document.createElement('div');
     card.className = 'item-card';
     card.innerHTML = `
       <div class="item-card-info">
-        <div class="item-card-title">${s.username}</div>
-        <div class="item-card-sub">${s.email || ''}</div>
+        <div class="item-card-title">${u.username}</div>
+        <div class="item-card-sub">${u.email || ''} ${u.groups?.length ? '— ' + u.groups.join(', ') : ''}</div>
       </div>`;
     list.appendChild(card);
   });
 }
+
+document.getElementById('group-filter')?.addEventListener('change', renderUsers);
 
 document.getElementById('add-student-btn').addEventListener('click', () => {
   document.getElementById('add-student-form').classList.toggle('hidden');
@@ -48,11 +60,11 @@ document.getElementById('s-save').addEventListener('click', async () => {
   msg.textContent = 'Creating...'; msg.className = 'msg';
   const res = await AUTH.api('POST', '/users', { username, email, password });
   if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
-  msg.textContent = 'Student created.'; msg.className = 'msg success';
+  msg.textContent = 'User created.'; msg.className = 'msg success';
   document.getElementById('s-username').value = '';
   document.getElementById('s-email').value = '';
   document.getElementById('s-password').value = '';
-  loadStudents();
+  loadUsers();
 });
 
 // ---- ASSIGNMENTS ----
@@ -148,7 +160,7 @@ document.getElementById('h-save').addEventListener('click', async () => {
 });
 
 // Initial load
-loadStudents();
+loadUsers();
 loadAssignments();
 loadHandouts();
 
@@ -231,8 +243,7 @@ if (AUTH.isAdmin()) {
   });
 
   // Load admin data when tab is clicked
-  document.querySelector('[data-tab="admin"]').addEventListener('click', () => {
-    loadAllUsers();
+  document.querySelector('[data-tab="courses"]').addEventListener('click', () => {
     loadClasses();
   });
 }
