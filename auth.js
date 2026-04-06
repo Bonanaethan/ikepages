@@ -45,12 +45,14 @@ const AUTH = {
     const user = this.getUser();
     if (!user) return null;
     const groups = user['cognito:groups'] || [];
+    if (groups.includes('admins')) return 'admin';
     if (groups.includes('teachers')) return 'teacher';
     if (groups.includes('students')) return 'student';
     return null;
   },
 
   isTeacher() { return this.getRole() === 'teacher'; },
+  isAdmin() { return this.getRole() === 'admin'; },
 
   isLoggedIn() {
     const token = this.getIdToken();

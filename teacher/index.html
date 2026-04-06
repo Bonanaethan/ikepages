@@ -10,7 +10,7 @@
   <script src="../auth.js"></script>
   <script>
     AUTH.requireAuth();
-    if (!AUTH.isTeacher()) window.location.href = '../main/index.html';
+    if (!AUTH.isTeacher() && !AUTH.isAdmin()) window.location.href = '../main/index.html';
   </script>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -29,6 +29,7 @@
       <button class="tab-btn active" data-tab="students">Students</button>
       <button class="tab-btn" data-tab="assignments">Assignments</button>
       <button class="tab-btn" data-tab="handouts">Handouts</button>
+      <button class="tab-btn" id="admin-tab-btn" data-tab="admin" style="display:none">Admin</button>
     </div>
 
     <!-- Students Tab -->
@@ -91,6 +92,30 @@
           <button class="btn primary" id="h-save">Create</button>
         </div>
         <p id="h-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- Admin Tab -->
+    <div id="tab-admin" class="tab-panel hidden">
+      <div class="panel-header">
+        <h2>All Users</h2>
+      </div>
+      <div id="users-list" class="card-list"></div>
+
+      <div class="panel-header" style="margin-top:32px">
+        <h2>Classes</h2>
+        <button class="btn primary" id="add-class-btn">+ New Class</button>
+      </div>
+      <div id="classes-list" class="card-list"></div>
+
+      <div id="add-class-form" class="form-card hidden">
+        <h3>New Class</h3>
+        <input type="text" id="c-name" placeholder="Class name (e.g. Grade 9 Math)" />
+        <div class="form-actions">
+          <button class="btn" id="c-cancel">Cancel</button>
+          <button class="btn primary" id="c-save">Create</button>
+        </div>
+        <p id="c-msg" class="msg"></p>
       </div>
     </div>
   </main>

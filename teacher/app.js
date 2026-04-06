@@ -151,3 +151,88 @@ document.getElementById('h-save').addEventListener('click', async () => {
 loadStudents();
 loadAssignments();
 loadHandouts();
+
+// ---- ADMIN ----
+if (AUTH.isAdmin()) {
+  document.getElementById('admin-tab-btn').style.display = '';
+
+  async function loadAllUsers() {
+    const list = document.getElementById('users-list');
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
+    const users = await AUTH.api('GET', '/admin/users');
+    if (!users.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No users found.</p>'; return; }
+    list.innerHTML = '';
+    users.forEach(u => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.innerHTML = `
+        <div class="item-card-info">
+          <div class="item-card-title">${u.username}</div>
+          <div class="item-card-sub">${u.email} — ${u.groups.join(', ') || 'no group'}</div>
+        </div>`;
+      list.appendChild(card);
+    });
+  }
+
+  async function loadClasses() {
+    const list = document.getElementById('classes-list');
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
+    const classes = await AUTH.api('GET', '/admin/classes');
+    if (!classes.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No classes yet.</p>'; return; }
+    list.innerHTML = '';
+    classes.forEach(c => {
+      const card = document.createElement('div');
+      card.className = 'item-card';
+      card.innerHTML = `
+        <div class="item-card-info">
+          <div class="item-card-title">${c.name}</div>
+          <div class="item-card-sub">${c.members?.length || 0} member(s)</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" placeholder="Username to add" id="add-member-${c.sk}"
+            style="background:#222536;border:1px solid #2e3248;border-radius:6px;padding:6px 10px;color:#e8eaf0;font-size:12px;font-family:inherit;outline:none;width:160px" />
+          <button class="btn" onclick="addMember('${c.sk}')">Add</button>
+          <button class="btn danger" onclick="deleteClass('${c.sk}')">Delete</button>
+        </div>`;
+      list.appendChild(card);
+    });
+  }
+
+  window.addMember = async (classId) => {
+    const input = document.getElementById('add-member-' + classId);
+    const username = input.value.trim();
+    if (!username) return;
+    await AUTH.api('POST', `/admin/classes/${classId}/members`, { username });
+    input.value = '';
+    loadClasses();
+  };
+
+  window.deleteClass = async (classId) => {
+    await AUTH.api('DELETE', '/admin/classes/' + classId);
+    loadClasses();
+  };
+
+  document.getElementById('add-class-btn').addEventListener('click', () => {
+    document.getElementById('add-class-form').classList.toggle('hidden');
+  });
+  document.getElementById('c-cancel').addEventListener('click', () => {
+    document.getElementById('add-class-form').classList.add('hidden');
+  });
+  document.getElementById('c-save').addEventListener('click', async () => {
+    const msg = document.getElementById('c-msg');
+    const name = document.getElementById('c-name').value.trim();
+    if (!name) { msg.textContent = 'Name required.'; msg.className = 'msg error'; return; }
+    msg.textContent = 'Saving...'; msg.className = 'msg';
+    const res = await AUTH.api('POST', '/admin/classes', { name });
+    if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
+    msg.textContent = 'Class created.'; msg.className = 'msg success';
+    document.getElementById('c-name').value = '';
+    loadClasses();
+  });
+
+  // Load admin data when tab is clicked
+  document.querySelector('[data-tab="admin"]').addEventListener('click', () => {
+    loadAllUsers();
+    loadClasses();
+  });
+}
