@@ -143,30 +143,87 @@ document.getElementById('a-save').addEventListener('click', async () => {
 });
 
 // ---- HANDOUTS ----
+let allHandouts = [];
+
 async function loadHandouts() {
   const list = document.getElementById('handouts-list');
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
   const items = await AUTH.api('GET', '/handouts');
-  if (!items.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No handouts yet.</p>'; return; }
+  allHandouts = Array.isArray(items) ? items : [];
+  
+  // Populate course filter
+  const filter = document.getElementById('handout-course-filter');
+  if (filter && allCourses.length) {
+    const currentVal = filter.value;
+    filter.innerHTML = '<option value="all">All Courses</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    filter.value = currentVal;
+  }
+  
+  // Populate course dropdown in form
+  const courseSelect = document.getElementById('h-course');
+  if (courseSelect && allCourses.length) {
+    const currentVal = courseSelect.value;
+    courseSelect.innerHTML = '<option value="">No course</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    courseSelect.value = currentVal;
+  }
+  
+  renderHandouts();
+}
+
+function renderHandouts() {
+  const list = document.getElementById('handouts-list');
+  const filterVal = document.getElementById('handout-course-filter')?.value || 'all';
+  const filtered = filterVal === 'all' ? allHandouts : allHandouts.filter(h => h.courseId === filterVal);
+  
+  if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No handouts found.</p>'; return; }
   list.innerHTML = '';
-  items.forEach(h => {
+  filtered.forEach(h => {
+    const courseName = allCourses.find(c => c.sk === h.courseId)?.name || '';
     const card = document.createElement('div');
     card.className = 'item-card';
     card.innerHTML = `
       <div class="item-card-info">
         <div class="item-card-title">${h.url ? `<a href="${h.url}" target="_blank" style="color:var(--yellow);text-decoration:none">${h.title}</a>` : h.title}</div>
-        <div class="item-card-sub">${h.description || ''}</div>
+        <div class="item-card-sub">${h.description || ''} ${courseName ? '— ' + courseName : ''}</div>
       </div>
-      <button class="btn danger">Delete</button>`;
-    card.querySelector('.btn.danger').addEventListener('click', async () => {
-      await AUTH.api('DELETE', '/handouts/' + h.sk);
-      loadHandouts();
-    });
+      <div style="display:flex;gap:8px">
+        <button class="btn" onclick="editHandout('${h.sk}')">Edit</button>
+        <button class="btn danger" onclick="deleteHandout('${h.sk}')">Delete</button>
+      </div>`;
     list.appendChild(card);
   });
 }
 
+document.getElementById('handout-course-filter')?.addEventListener('change', renderHandouts);
+
+window.editHandout = (id) => {
+  const h = allHandouts.find(x => x.sk === id);
+  if (!h) return;
+  document.getElementById('handout-form-title').textContent = 'Edit Handout';
+  document.getElementById('h-id').value = h.sk;
+  document.getElementById('h-title').value = h.title || '';
+  document.getElementById('h-url').value = h.url || '';
+  document.getElementById('h-desc').value = h.description || '';
+  document.getElementById('h-content').value = h.content || '';
+  document.getElementById('h-course').value = h.courseId || '';
+  document.getElementById('add-handout-form').classList.remove('hidden');
+};
+
+window.deleteHandout = async (id) => {
+  await AUTH.api('DELETE', '/handouts/' + id);
+  loadHandouts();
+};
+
 document.getElementById('add-handout-btn').addEventListener('click', () => {
+  document.getElementById('handout-form-title').textContent = 'New Handout';
+  document.getElementById('h-id').value = '';
+  document.getElementById('h-title').value = '';
+  document.getElementById('h-url').value = '';
+  document.getElementById('h-desc').value = '';
+  document.getElementById('h-content').value = '';
+  document.getElementById('h-course').value = '';
   document.getElementById('add-handout-form').classList.toggle('hidden');
 });
 document.getElementById('h-cancel').addEventListener('click', () => {
@@ -174,17 +231,20 @@ document.getElementById('h-cancel').addEventListener('click', () => {
 });
 document.getElementById('h-save').addEventListener('click', async () => {
   const msg = document.getElementById('h-msg');
+  const id = document.getElementById('h-id').value;
   const title = document.getElementById('h-title').value.trim();
   const url = document.getElementById('h-url').value.trim();
   const description = document.getElementById('h-desc').value.trim();
+  const content = document.getElementById('h-content').value.trim();
+  const courseId = document.getElementById('h-course').value;
   if (!title) { msg.textContent = 'Title required.'; msg.className = 'msg error'; return; }
   msg.textContent = 'Saving...'; msg.className = 'msg';
-  const res = await AUTH.api('POST', '/handouts', { title, url, description });
+  const method = id ? 'PUT' : 'POST';
+  const endpoint = id ? `/handouts/${id}` : '/handouts';
+  const res = await AUTH.api(method, endpoint, { title, url, description, content, courseId });
   if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
-  msg.textContent = 'Handout created.'; msg.className = 'msg success';
-  document.getElementById('h-title').value = '';
-  document.getElementById('h-url').value = '';
-  document.getElementById('h-desc').value = '';
+  msg.textContent = id ? 'Handout updated.' : 'Handout created.'; msg.className = 'msg success';
+  document.getElementById('add-handout-form').classList.add('hidden');
   loadHandouts();
 });
 

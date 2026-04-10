@@ -25,6 +25,7 @@ def get_role(event):
             return 'admin'
         if 'teachers' in groups:
             return 'teacher'
+            return 'teacher'
         if 'students' in groups:
             return 'student'
         return None
@@ -124,7 +125,7 @@ def lambda_handler(event, context):
 
     # POST /handouts — create handout (teacher only)
     if method == 'POST' and path == '/prod/handouts':
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         body = json.loads(event.get('body') or '{}')
         if not body.get('title'):
@@ -135,6 +136,8 @@ def lambda_handler(event, context):
             'title': body['title'],
             'url': body.get('url', ''),
             'description': body.get('description', ''),
+            'content': body.get('content', ''),
+            'courseId': body.get('courseId', ''),
             'createdAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Handout created', 'id': item_id})
@@ -146,12 +149,32 @@ def lambda_handler(event, context):
         )
         return resp(200, result['Items'])
 
-    # DELETE /handouts/{id} (teacher only)
+    # PUT /handouts/{id} — update handout (teacher/admin only)
+    if method == 'PUT' and path.startswith('/prod/handouts/'):
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        item_id = path.split('/')[-1]
+        body = json.loads(event.get('body') or '{}')
+        if not body.get('title'):
+            return resp(400, {'error': 'Missing title'})
+        table.put_item(Item={
+            'pk': 'HANDOUT', 'sk': item_id,
+            'title': body['title'],
+            'url': body.get('url', ''),
+            'description': body.get('description', ''),
+            'content': body.get('content', ''),
+            'courseId': body.get('courseId', ''),
+            'updatedAt': datetime.now(timezone.utc).isoformat()
+        })
+        return resp(200, {'message': 'Handout updated'})
+
+    # DELETE /handouts/{id} (teacher/admin only)
     if method == 'DELETE' and path.startswith('/prod/handouts/'):
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         table.delete_item(Key={'pk': 'HANDOUT', 'sk': item_id})
+        return resp(200, {'message': 'Deleted'})
         return resp(200, {'message': 'Deleted'})
 
     # GET /profile — get current user's profile
