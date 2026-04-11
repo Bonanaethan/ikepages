@@ -3,51 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Handout</title>
+  <title>Handouts</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="../auth.js"></script>
   <script>AUTH.requireAuth();</script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --bg: #0f1117; --surface: #1a1d27; --border: #2e3248;
-      --text: #e8eaf0; --muted: #6b7280; --yellow: #f9a825;
-    }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background: var(--bg); color: var(--text); min-height: 100vh;
-    }
-    nav {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 40px; height: 64px;
-      background: var(--surface); border-bottom: 1px solid var(--border);
-    }
-    .back-link {
-      color: var(--muted); text-decoration: none; font-size: 13px;
-      display: flex; align-items: center; gap: 6px;
-      transition: color 0.2s;
-    }
-    .back-link:hover { color: var(--yellow); }
-    .nav-title { font-size: 15px; font-weight: 600; }
-    main {
-      max-width: 960px; margin: 0 auto; padding: 48px 24px;
-    }
-    h1 { font-size: 28px; font-weight: 300; margin-bottom: 8px; }
-    h1 span { font-weight: 700; color: var(--yellow); }
-    p { color: var(--muted); font-size: 14px; }
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <nav>
-    <a href="../main/index.html" class="back-link">← Back</a>
-    <span class="nav-title">Handout</span>
-    <span></span>
+  <nav class="navbar">
+    <a href="../main/index.html" class="back-link">← Dashboard</a>
+    <span class="nav-brand">Handouts</span>
+    <div class="nav-right">
+      <span id="nav-username"></span>
+      <button id="add-handout-btn" class="nav-btn primary" style="display:none">+ Add Handout</button>
+    </div>
   </nav>
-  <main>
-    <h1><span>Handout</span></h1>
-    <p>Handout content goes here.</p>
+
+  <main class="content">
+    <div class="filter-bar" id="filter-bar" style="display:none">
+      <select id="course-filter">
+        <option value="all">All Courses</option>
+      </select>
+    </div>
+
+    <div id="handouts-list" class="handouts-grid"></div>
+
+    <!-- Add/Edit Form (teachers only) -->
+    <div id="handout-form" class="modal hidden">
+      <div class="modal-card">
+        <h3 id="form-title">New Handout</h3>
+        <input type="hidden" id="h-id" />
+        <input type="text" id="h-title" placeholder="Title" />
+        <input type="url" id="h-url" placeholder="URL (optional)" />
+        <textarea id="h-desc" placeholder="Description"></textarea>
+        <textarea id="h-content" placeholder="Content (optional)" style="min-height:120px"></textarea>
+        <select id="h-course">
+          <option value="">No course</option>
+        </select>
+        <div class="modal-actions">
+          <button id="h-cancel">Cancel</button>
+          <button id="h-save" class="primary">Save</button>
+        </div>
+        <p id="h-msg" class="msg"></p>
+      </div>
+    </div>
   </main>
+
+  <script src="app.js"></script>
 </body>
 </html>
