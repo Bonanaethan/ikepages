@@ -1,6 +1,6 @@
 // ---- Storage ----
-const isTeacher = true;  // teacher mode always on (no login)
-const session   = { username: 'teacher', name: 'Teacher', role: 'teacher' };
+const isTeacher = AUTH.isTeacher() || AUTH.isAdmin();
+const session = { username: AUTH.getUser()?.['cognito:username'] || 'user', name: AUTH.getUser()?.['cognito:username'] || 'User', role: isTeacher ? 'teacher' : 'student' };
 const HW_KEY = 'mm_homework';   // shared homework created by teacher
 const DB_KEY = 'mm_users';
 
@@ -333,10 +333,11 @@ function removeStudent(username) {
 
 // ---- Nav setup ----
 function setupNav() {
-  document.getElementById('nav-username').textContent = 'Teacher';
-  document.getElementById('add-hw-btn').classList.remove('hidden');
-  document.getElementById('manage-students-btn').classList.remove('hidden');
-
+  document.getElementById('nav-username').textContent = session.username;
+  if (isTeacher) {
+    document.getElementById('add-hw-btn').classList.remove('hidden');
+    document.getElementById('manage-students-btn').classList.remove('hidden');
+  }
 }
 
 // ---- Event listeners ----
