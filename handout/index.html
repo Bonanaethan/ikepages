@@ -7,6 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
   <script src="../auth.js"></script>
   <script>AUTH.requireAuth();</script>
   <link rel="stylesheet" href="style.css" />
@@ -17,7 +19,7 @@
     <span class="nav-brand">Handouts</span>
     <div class="nav-right">
       <span id="nav-username"></span>
-      <button id="add-handout-btn" class="nav-btn primary" style="display:none">+ Add Handout</button>
+      <button id="add-handout-btn" class="nav-btn primary" style="display:none">+ New Handout</button>
     </div>
   </nav>
 
@@ -27,29 +29,47 @@
         <option value="all">All Courses</option>
       </select>
     </div>
-
     <div id="handouts-list" class="handouts-grid"></div>
+  </main>
 
-    <!-- Add/Edit Form (teachers only) -->
-    <div id="handout-form" class="modal hidden">
-      <div class="modal-card">
-        <h3 id="form-title">New Handout</h3>
-        <input type="hidden" id="h-id" />
-        <input type="text" id="h-title" placeholder="Title" />
-        <input type="url" id="h-url" placeholder="URL (optional)" />
-        <textarea id="h-desc" placeholder="Description"></textarea>
-        <textarea id="h-content" placeholder="Content (optional)" style="min-height:120px"></textarea>
-        <select id="h-course">
-          <option value="">No course</option>
-        </select>
-        <div class="modal-actions">
-          <button id="h-cancel">Cancel</button>
-          <button id="h-save" class="primary">Save</button>
-        </div>
-        <p id="h-msg" class="msg"></p>
+  <!-- Editor Panel -->
+  <div id="editor-overlay" class="editor-overlay hidden"></div>
+  <div id="editor-panel" class="editor-panel hidden">
+    <div class="editor-header">
+      <h2 id="editor-title">New Handout</h2>
+      <button id="editor-close" class="editor-close">×</button>
+    </div>
+    <div class="editor-meta">
+      <input type="hidden" id="h-id" />
+      <input type="text" id="h-title" placeholder="Handout title..." class="editor-title-input" />
+      <select id="h-course" class="editor-select">
+        <option value="">No course</option>
+      </select>
+    </div>
+
+    <!-- Block toolbar -->
+    <div class="block-toolbar">
+      <span class="toolbar-label">Add block:</span>
+      <button class="block-add-btn" data-type="header">H Header</button>
+      <button class="block-add-btn" data-type="paragraph">¶ Text</button>
+      <button class="block-add-btn" data-type="bullets">• List</button>
+      <button class="block-add-btn" data-type="image">🖼 Image</button>
+      <button class="block-add-btn" data-type="file">📎 File</button>
+      <button class="block-add-btn" data-type="math">∑ Math</button>
+      <button class="block-add-btn" data-type="divider">— Divider</button>
+    </div>
+
+    <!-- Blocks container -->
+    <div id="blocks-container" class="blocks-container"></div>
+
+    <div class="editor-footer">
+      <p id="editor-msg" class="msg"></p>
+      <div class="editor-actions">
+        <button id="editor-cancel" class="btn">Cancel</button>
+        <button id="editor-save" class="btn primary">Save Handout</button>
       </div>
     </div>
-  </main>
+  </div>
 
   <script src="app.js"></script>
 </body>

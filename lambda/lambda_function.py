@@ -1,8 +1,11 @@
 import json
 import boto3
+import uuid
 from datetime import datetime, timezone
 
 dynamodb = boto3.resource('dynamodb', region_name='ca-central-1')
+s3 = boto3.client('s3', region_name='ca-central-1')
+S3_BUCKET = 'hw.ikids.education'
 cognito = boto3.client('cognito-idp', region_name='ca-central-1')
 TABLE = 'ikids-data'
 USER_POOL_ID = 'ca-central-1_iIZCbfNW9'
@@ -176,6 +179,24 @@ def lambda_handler(event, context):
         table.delete_item(Key={'pk': 'HANDOUT', 'sk': item_id})
         return resp(200, {'message': 'Deleted'})
         return resp(200, {'message': 'Deleted'})
+
+    # POST /upload-url — get presigned S3 upload URL (teacher/admin only)
+    if method == 'POST' and path == '/prod/upload-url':
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        body = json.loads(event.get('body') or '{}')
+        filename = body.get('filename', 'file')
+        content_type = body.get('contentType', 'application/octet-stream')
+        key = f"uploads/{uuid.uuid4()}-{filename}"
+        try:
+            url = s3.generate_presigned_url('put_object',
+                Params={'Bucket': S3_BUCKET, 'Key': key, 'ContentType': content_type},
+                ExpiresIn=300
+            )
+            public_url = f"https://{S3_BUCKET}/{key}"
+            return resp(200, {'uploadUrl': url, 'publicUrl': public_url, 'key': key})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
 
     # GET /announcements
     if method == 'GET' and path == '/prod/announcements':
