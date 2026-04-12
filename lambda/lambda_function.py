@@ -2,7 +2,7 @@ import json
 import boto3
 from datetime import datetime, timezone
 
-dynamodb = boto3.resource('dynamodb')
+dynamodb = boto3.resource('dynamodb', region_name='ca-central-1')
 cognito = boto3.client('cognito-idp', region_name='ca-central-1')
 TABLE = 'ikids-data'
 USER_POOL_ID = 'ca-central-1_iIZCbfNW9'

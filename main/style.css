@@ -181,6 +181,21 @@ body {
 .ann-input:focus { border-color: var(--yellow); }
 .ann-input::placeholder { color: #444; }
 
+.ann-post-btn {
+  background: var(--yellow);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+  align-self: flex-start;
+}
+.ann-post-btn:hover { background: #e69100; }
+
 /* ---- QUICK LINKS ---- */
 .quicklinks-section {
   background: var(--surface);
