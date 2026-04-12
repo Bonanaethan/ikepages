@@ -40,21 +40,22 @@ function renderHandouts() {
   filtered.forEach(h => {
     const courseName = allCourses.find(c => c.sk === h.courseId)?.name || '';
     const parsedBlocks = tryParseBlocks(h.content);
+    const blockCount = parsedBlocks.length;
     const card = document.createElement('div');
-    card.className = 'handout-card';
+    card.className = 'hw-card';
+    card.style.cursor = 'pointer';
     card.innerHTML = `
-      <div class="handout-header">
-        <div>
-          <div class="handout-title">${h.title}</div>
-          ${courseName ? `<div class="handout-course">${courseName}</div>` : ''}
-        </div>
+      <div class="hw-card-body" onclick="window.location.href='view.html?id=${h.sk}'">
+        <div class="hw-card-subject">${courseName || 'Handout'}</div>
+        <div class="hw-card-title">📄 ${h.title}</div>
+        <div class="hw-card-meta">${blockCount} block${blockCount !== 1 ? 's' : ''}</div>
       </div>
-      <div class="block-render">${renderBlocks(parsedBlocks)}</div>
-      ${isTeacher ? `
-      <div class="handout-actions">
-        <button class="btn" onclick="openEditor('${h.sk}')">Edit</button>
-        <button class="btn danger" onclick="deleteHandout('${h.sk}')">Delete</button>
-      </div>` : ''}`;
+      <div class="hw-card-actions">
+        ${isTeacher ? `
+          <button class="btn" onclick="event.stopPropagation();openEditor('${h.sk}')">Edit</button>
+          <button class="btn danger" onclick="event.stopPropagation();deleteHandout('${h.sk}')">Delete</button>
+        ` : ''}
+      </div>`;
     list.appendChild(card);
   });
 }
