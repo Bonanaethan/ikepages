@@ -94,11 +94,19 @@
         </div>
       </div>
 
-      <!-- Bookmarks -->
-      <div class="bookmarks-section">
-        <div class="widget-label">Bookmarks</div>
-        <div class="bookmarks-grid" id="bookmarks-grid"></div>
-        <button class="add-bookmark-btn" id="add-bookmark-btn">+ Add Bookmark</button>
+      <!-- Announcements -->
+      <div class="announcements-section" id="announcements-section">
+        <div class="widget-label">Announcements</div>
+        <div id="announcements-list"><p style="color:var(--muted);font-size:13px">No announcements.</p></div>
+        <!-- Teacher/Admin create form -->
+        <div id="announcement-form" class="hidden" style="margin-top:16px;display:flex;flex-direction:column;gap:10px;max-width:480px">
+          <input type="text" id="ann-title" placeholder="Title" class="ann-input" />
+          <textarea id="ann-message" placeholder="Message (optional)" class="ann-input" style="resize:vertical;min-height:70px"></textarea>
+          <div style="display:flex;gap:8px">
+            <button id="ann-save" class="add-bookmark-btn" style="border-style:solid;color:var(--yellow);border-color:var(--yellow)">Post Announcement</button>
+          </div>
+          <p id="ann-msg" style="font-size:12px;color:var(--muted);min-height:16px"></p>
+        </div>
       </div>
 
       <!-- Quick Links -->
@@ -120,18 +128,7 @@
         </div>
       </div>
 
-      <!-- Add Bookmark Modal -->
-      <div id="bookmark-modal" class="modal hidden">
-        <div class="modal-card">
-          <h3>Add Bookmark</h3>
-          <input type="text" id="bm-name" placeholder="Name (e.g. Gmail)" />
-          <input type="url" id="bm-url" placeholder="URL (e.g. https://gmail.com)" />
-          <div class="modal-actions">
-            <button id="bm-cancel">Cancel</button>
-            <button id="bm-save" class="primary">Save</button>
-          </div>
-        </div>
-      </div>
+
     </main>
   </div>
 

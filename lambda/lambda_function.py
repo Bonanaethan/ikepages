@@ -177,6 +177,46 @@ def lambda_handler(event, context):
         return resp(200, {'message': 'Deleted'})
         return resp(200, {'message': 'Deleted'})
 
+    # GET /announcements
+    if method == 'GET' and path == '/prod/announcements':
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            result = table.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ANNOUNCEMENT')
+            )
+            items = result.get('Items', [])
+            # Filter to announcements assigned to this user or 'all'
+            visible = [a for a in items if a.get('assignedTo') == 'all' or username in (a.get('assignedTo') or [])]
+            return resp(200, visible)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # POST /announcements — create (teacher/admin only)
+    if method == 'POST' and path == '/prod/announcements':
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        body = json.loads(event.get('body') or '{}')
+        if not body.get('title'):
+            return resp(400, {'error': 'Missing title'})
+        item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
+        table.put_item(Item={
+            'pk': 'ANNOUNCEMENT', 'sk': item_id,
+            'title': body['title'],
+            'message': body.get('message', ''),
+            'assignedTo': body.get('assignedTo', 'all'),
+            'createdAt': datetime.now(timezone.utc).isoformat()
+        })
+        return resp(200, {'message': 'Announcement created', 'id': item_id})
+
+    # DELETE /announcements/{id} (teacher/admin only)
+    if method == 'DELETE' and path.startswith('/prod/announcements/'):
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        item_id = path.split('/')[-1]
+        table.delete_item(Key={'pk': 'ANNOUNCEMENT', 'sk': item_id})
+        return resp(200, {'message': 'Deleted'})
+
     # GET /profile — get current user's profile
     if method == 'GET' and path == '/prod/profile':
         try:

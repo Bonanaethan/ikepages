@@ -88,83 +88,60 @@ function showWeatherError(msg) {
   document.getElementById('weather-content').innerHTML = `<div class="weather-loading">${msg}</div>`;
 }
 
-// ---- Bookmarks ----
-const STORAGE_KEY = 'bmw_bookmarks';
+// ---- Announcements ----
+async function initAnnouncements() {
+  const list = document.getElementById('announcements-list');
+  const isTeacherOrAdmin = AUTH.isTeacher() || AUTH.isAdmin();
 
-function loadBookmarks() {
-  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-}
-
-function saveBookmarks(bookmarks) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookmarks));
-}
-
-function renderBookmarks() {
-  const grid = document.getElementById('bookmarks-grid');
-  const bookmarks = loadBookmarks();
-  grid.innerHTML = '';
-
-  if (bookmarks.length === 0) {
-    grid.innerHTML = '<span style="color:#555;font-size:13px;">No bookmarks yet — add one below.</span>';
+  if (isTeacherOrAdmin) {
+    document.getElementById('announcement-form').classList.remove('hidden');
+    document.getElementById('ann-save').addEventListener('click', async () => {
+      const title = document.getElementById('ann-title').value.trim();
+      const message = document.getElementById('ann-message').value.trim();
+      const msg = document.getElementById('ann-msg');
+      if (!title) { msg.textContent = 'Title required.'; msg.style.color = '#e05252'; return; }
+      msg.textContent = 'Posting...'; msg.style.color = 'var(--muted)';
+      const res = await AUTH.api('POST', '/announcements', { title, message, assignedTo: 'all' });
+      if (res.error) { msg.textContent = res.error; msg.style.color = '#e05252'; return; }
+      msg.textContent = 'Posted.'; msg.style.color = '#4caf50';
+      document.getElementById('ann-title').value = '';
+      document.getElementById('ann-message').value = '';
+      loadAnnouncements();
+    });
   }
 
-  bookmarks.forEach((bm, i) => {
-    const domain = new URL(bm.url).hostname;
-    const a = document.createElement('a');
-    a.className = 'bookmark-item';
-    a.href = bm.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.innerHTML = `
-      <img class="bookmark-favicon" src="https://www.google.com/s2/favicons?domain=${domain}&sz=32" alt="" />
-      ${bm.name}
-      <button class="bookmark-delete" data-index="${i}" title="Remove">×</button>
-    `;
-    grid.appendChild(a);
-  });
+  loadAnnouncements();
+}
 
-  grid.querySelectorAll('.bookmark-delete').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.index);
-      const bms = loadBookmarks();
-      bms.splice(idx, 1);
-      saveBookmarks(bms);
-      renderBookmarks();
-    });
+async function loadAnnouncements() {
+  const list = document.getElementById('announcements-list');
+  const isTeacherOrAdmin = AUTH.isTeacher() || AUTH.isAdmin();
+  const items = await AUTH.api('GET', '/announcements');
+  if (!Array.isArray(items) || !items.length) {
+    list.innerHTML = '<p style="color:var(--muted);font-size:13px">No announcements.</p>';
+    return;
+  }
+  list.innerHTML = '';
+  items.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'announcement-card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="announcement-title">${a.title}</div>
+          ${a.message ? `<div class="announcement-msg">${a.message}</div>` : ''}
+          <div class="announcement-date">${new Date(a.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+        </div>
+        ${isTeacherOrAdmin ? `<button onclick="deleteAnnouncement('${a.sk}')" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0" title="Delete">×</button>` : ''}
+      </div>`;
+    list.appendChild(card);
   });
 }
 
-function initBookmarks() {
-  renderBookmarks();
-
-  document.getElementById('add-bookmark-btn').addEventListener('click', () => {
-    document.getElementById('bookmark-modal').classList.remove('hidden');
-    document.getElementById('bm-name').focus();
-  });
-
-  document.getElementById('bm-cancel').addEventListener('click', closeModal);
-
-  document.getElementById('bm-save').addEventListener('click', () => {
-    const name = document.getElementById('bm-name').value.trim();
-    let url = document.getElementById('bm-url').value.trim();
-    if (!name || !url) return;
-    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-    try { new URL(url); } catch { return; }
-    const bms = loadBookmarks();
-    bms.push({ name, url });
-    saveBookmarks(bms);
-    renderBookmarks();
-    closeModal();
-  });
-}
-
-function closeModal() {
-  document.getElementById('bookmark-modal').classList.add('hidden');
-  document.getElementById('bm-name').value = '';
-  document.getElementById('bm-url').value = '';
-}
+window.deleteAnnouncement = async (id) => {
+  await AUTH.api('DELETE', '/announcements/' + id);
+  loadAnnouncements();
+};
 
 // ---- Customization ----
 const SETTINGS_KEY = 'bmw_settings';
@@ -254,7 +231,7 @@ document.getElementById('nav-username').textContent = username;
 updateGreeting(username);
 startClock();
 loadWeather();
-initBookmarks();
+initAnnouncements();
 initCustomizer();
 
 // Show teacher link if user is a teacher or admin
@@ -265,7 +242,7 @@ if (AUTH.isTeacher() || AUTH.isAdmin()) {
 
 // Load profile for students — redirect to setup if missing, else show first name
 (async () => {
-  if (!AUTH.isTeacher()) {
+  if (!AUTH.isTeacher() && !AUTH.isAdmin()) {
     const profile = await AUTH.api('GET', '/profile');
     if (!profile.firstName) {
       window.location.href = '../profile/index.html';
