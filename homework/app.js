@@ -1,367 +1,115 @@
-// ---- Storage ----
 const isTeacher = AUTH.isTeacher() || AUTH.isAdmin();
-const session = { username: AUTH.getUser()?.['cognito:username'] || 'user', name: AUTH.getUser()?.['cognito:username'] || 'User', role: isTeacher ? 'teacher' : 'student' };
-const HW_KEY = 'mm_homework';   // shared homework created by teacher
-const DB_KEY = 'mm_users';
+const username = AUTH.getUser()?.['cognito:username'] || '';
+document.getElementById('nav-username').textContent = username;
+if (isTeacher) document.getElementById('add-hw-btn').classList.remove('hidden');
 
-function loadHW() {
-  return JSON.parse(localStorage.getItem(HW_KEY) || '[]');
-}
-
-function saveHW(data) {
-  localStorage.setItem(HW_KEY, JSON.stringify(data));
-}
-
-function getUsers() {
-  return JSON.parse(localStorage.getItem(DB_KEY) || '{}');
-}
-
-function saveUsers(u) {
-  localStorage.setItem(DB_KEY, JSON.stringify(u));
-}
-
-function genId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
+let allAssignments = [];
+let doneMap = {};
+let allCourses = [];
+let blocks = [];
+let editingId = null;
+let currentFilter = 'all';
 
 function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(str) { return String(str).replace(/"/g,'&quot;'); }
+
+// ---- LOAD DATA ----
+async function init() {
+  if (isTeacher) {
+    const res = await AUTH.api('GET', '/admin/classes');
+    allCourses = Array.isArray(res) ? res : [];
+    const sel = document.getElementById('hw-course');
+    if (sel) sel.innerHTML = '<option value="">No course</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+  }
+  const [assignments, done] = await Promise.all([
+    AUTH.api('GET', '/assignments'),
+    AUTH.api('GET', '/assignments/done')
+  ]);
+  allAssignments = Array.isArray(assignments) ? assignments : [];
+  doneMap = done || {};
+  render();
 }
 
-// ---- Built-in assignments (always present) ----
-const BUILTIN = [
-  {
-    id: '__builtin_g9w1__',
-    subject: 'Math',
-    title: 'MathMind G9 — Winter Practice 1',
-    due: '',
-    doc: '',
-    notes: 'Algebraic Identities · Difference of Squares & Perfect Squares',
-    practiceLink: 'practice-g9-winter-1.html',
-    assignedTo: 'all',
-    get done() {
-      try {
-        var d = JSON.parse(localStorage.getItem('mm_builtin_done') || '{}');
-        return d['__builtin_g9w1__'] ? { teacher: true } : {};
-      } catch(e) { return {}; }
-    },
-    builtin: true
-  }
-];
-
-// ---- Filter state ----
-let currentFilter = 'all';
-let editingId = null;
-
-// ---- Render ----
+// ---- RENDER CARDS ----
 function render() {
-  const all = [...BUILTIN, ...loadHW()];
+  const list = document.getElementById('hw-list');
+  const empty = document.getElementById('hw-empty');
+  list.innerHTML = '';
 
-  // Students only see assignments assigned to them or 'all'
-  const visible = isTeacher ? all : all.filter(hw => {
-    return hw.assignedTo === 'all' || (Array.isArray(hw.assignedTo) && hw.assignedTo.includes(session.username));
-  });
-
-  // Per-student done state
-  const filtered = visible.filter(hw => {
-    const done = isDone(hw);
+  let filtered = allAssignments.filter(hw => {
+    const done = !!doneMap[hw.sk];
     if (currentFilter === 'pending') return !done;
-    if (currentFilter === 'done')    return done;
+    if (currentFilter === 'done') return done;
     return true;
   });
 
   filtered.sort((a, b) => {
-    const da = isDone(a), db = isDone(b);
+    const da = !!doneMap[a.sk], db = !!doneMap[b.sk];
     if (da !== db) return da ? 1 : -1;
-    if (!a.due && !b.due) return 0;
-    if (!a.due) return 1;
-    if (!b.due) return -1;
-    return new Date(a.due) - new Date(b.due);
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate) - new Date(b.dueDate);
   });
 
-  const list  = document.getElementById('hw-list');
-  const empty = document.getElementById('hw-empty');
-  list.innerHTML = '';
-
-  if (filtered.length === 0) {
-    empty.classList.remove('hidden');
-    return;
-  }
+  if (!filtered.length) { empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
 
   filtered.forEach(hw => {
-    const done    = isDone(hw);
-    const overdue = hw.due && !done && new Date(hw.due) < new Date().setHours(0,0,0,0);
-    const dueText = hw.due
-      ? `Due ${new Date(hw.due + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    const done = !!doneMap[hw.sk];
+    const overdue = hw.dueDate && !done && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+    const dueText = hw.dueDate
+      ? `Due ${new Date(hw.dueDate + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}`
       : 'No due date';
+    const courseName = allCourses.find(c => c.sk === hw.courseId)?.name || '';
 
     const card = document.createElement('div');
     card.className = 'hw-card' + (done ? ' done' : '');
-    card.dataset.id = hw.id;
-
     card.innerHTML = `
-      <div class="hw-check ${done ? 'checked' : ''} ${!isTeacher ? 'readonly' : ''}" data-id="${hw.id}" title="${isTeacher ? 'Mark complete' : ''}"></div>
+      <div class="hw-check ${done ? 'checked' : ''}" data-id="${hw.sk}" title="Mark complete"></div>
       <div class="hw-card-body">
-        <div class="hw-card-subject">${escHtml(hw.subject || 'General')}</div>
+        <div class="hw-card-subject">${escHtml(hw.subject || courseName || 'General')}</div>
         <div class="hw-card-title">${escHtml(hw.title)}</div>
         <div class="hw-card-meta ${overdue ? 'overdue' : ''}">${overdue ? '⚠ Overdue · ' : ''}${dueText}</div>
       </div>
       <div class="hw-card-actions">
-        ${hw.practiceLink ? `<a class="hw-doc-badge" href="${escHtml(hw.practiceLink)}" target="_blank" rel="noopener noreferrer">📝 Practice</a>` : ''}
-        ${hw.doc ? `<a class="hw-doc-badge" href="${escHtml(hw.doc)}" target="_blank" rel="noopener noreferrer">📄 Doc</a>` : ''}
-        ${isTeacher && !hw.builtin ? `<button class="hw-edit-btn" data-id="${hw.id}" title="Edit">✏</button>` : ''}
-        ${isTeacher && !hw.builtin ? `<button class="hw-delete" data-id="${hw.id}" title="Delete">×</button>` : ''}
-      </div>
-    `;
+        ${isTeacher ? `
+          <button class="hw-edit-btn" data-id="${hw.sk}" title="Edit">✏</button>
+          <button class="hw-delete" data-id="${hw.sk}" title="Delete">×</button>
+        ` : ''}
+      </div>`;
 
-    card.querySelector('.hw-card-body').addEventListener('click', () => openView(hw.id));
+    card.querySelector('.hw-card-body').addEventListener('click', () => {
+      window.location.href = `view.html?id=${hw.sk}`;
+    });
     card.querySelector('.hw-check').addEventListener('click', e => {
       e.stopPropagation();
-      if (isTeacher) toggleDone(hw.id);
+      toggleDone(hw.sk);
     });
-
-    const editBtn = card.querySelector('.hw-edit-btn');
-    if (editBtn) editBtn.addEventListener('click', e => { e.stopPropagation(); openAddModal(hw.id); });
-
-    const delBtn = card.querySelector('.hw-delete');
-    if (delBtn) delBtn.addEventListener('click', e => { e.stopPropagation(); deleteHw(hw.id); });
+    card.querySelector('.hw-edit-btn')?.addEventListener('click', e => { e.stopPropagation(); openEditor(hw.sk); });
+    card.querySelector('.hw-delete')?.addEventListener('click', e => { e.stopPropagation(); deleteHw(hw.sk); });
 
     list.appendChild(card);
   });
 }
 
-function isDone(hw) {
-  if (!session) return false;
-  const d = hw.done;
-  if (typeof d === 'boolean') return d;
-  if (typeof d === 'object' && d !== null) return !!(d[session.username] || d['teacher']);
-  return false;
+async function toggleDone(id) {
+  doneMap[id] = !doneMap[id];
+  render();
+  await AUTH.api('POST', `/assignments/${id}/done`, { done: doneMap[id] });
 }
 
-// ---- Actions ----
-function toggleDone(id) {
-  // Builtin
-  const builtin = BUILTIN.find(h => h.id === id);
-  if (builtin) {
-    try {
-      const d = JSON.parse(localStorage.getItem('mm_builtin_done') || '{}');
-      d[id] = !d[id];
-      localStorage.setItem('mm_builtin_done', JSON.stringify(d));
-    } catch(e) {}
-    render(); return;
-  }
-  const data = loadHW();
-  const hw   = data.find(h => h.id === id);
-  if (!hw) return;
-  if (typeof hw.done !== 'object') hw.done = {};
-  hw.done[session.username] = !hw.done[session.username];
-  saveHW(data);
+async function deleteHw(id) {
+  if (!confirm('Delete this assignment?')) return;
+  await AUTH.api('DELETE', '/assignments/' + id);
+  allAssignments = allAssignments.filter(a => a.sk !== id);
   render();
 }
 
-function deleteHw(id) {
-  saveHW(loadHW().filter(h => h.id !== id));
-  render();
-}
-
-// ---- Add / Edit Modal (teacher only) ----
-function openAddModal(id = null) {
-  if (!isTeacher) return;
-  editingId = id;
-  document.getElementById('modal-title').textContent = id ? 'Edit Assignment' : 'New Assignment';
-
-  if (id) {
-    const hw = loadHW().find(h => h.id === id);
-    if (!hw) return;
-    document.getElementById('hw-subject').value    = hw.subject || '';
-    document.getElementById('hw-title-input').value = hw.title || '';
-    document.getElementById('hw-due').value         = hw.due || '';
-    document.getElementById('hw-doc').value         = hw.doc || '';
-    document.getElementById('hw-notes').value       = hw.notes || '';
-    document.getElementById('hw-practice').value    = hw.practiceLink || '';
-    document.getElementById('hw-assign').value      = hw.assignedTo === 'all' ? '' : (Array.isArray(hw.assignedTo) ? hw.assignedTo.join(', ') : hw.assignedTo);
-  } else {
-    ['hw-subject','hw-title-input','hw-due','hw-doc','hw-notes','hw-practice','hw-assign'].forEach(id => {
-      document.getElementById(id).value = '';
-    });
-  }
-
-  document.getElementById('hw-modal').classList.remove('hidden');
-  document.getElementById('hw-subject').focus();
-}
-
-function closeAddModal() {
-  document.getElementById('hw-modal').classList.add('hidden');
-  editingId = null;
-}
-
-function saveHwItem() {
-  const title = document.getElementById('hw-title-input').value.trim();
-  if (!title) { document.getElementById('hw-title-input').focus(); return; }
-
-  let doc = document.getElementById('hw-doc').value.trim();
-  if (doc && !/^https?:\/\//i.test(doc)) doc = 'https://' + doc;
-
-  const assignRaw = document.getElementById('hw-assign').value.trim();
-  const assignedTo = assignRaw
-    ? assignRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
-    : 'all';
-
-  const item = {
-    subject:     document.getElementById('hw-subject').value.trim(),
-    title,
-    due:         document.getElementById('hw-due').value,
-    doc,
-    notes:       document.getElementById('hw-notes').value.trim(),
-    practiceLink: document.getElementById('hw-practice').value.trim(),
-    assignedTo,
-    done: {}
-  };
-
-  const data = loadHW();
-  if (editingId) {
-    const idx = data.findIndex(h => h.id === editingId);
-    if (idx !== -1) { data[idx] = { ...data[idx], ...item }; }
-  } else {
-    data.push({ id: genId(), ...item, created: Date.now() });
-  }
-
-  saveHW(data);
-  render();
-  closeAddModal();
-}
-
-// ---- View Modal ----
-function openView(id) {
-  const hw = [...BUILTIN, ...loadHW()].find(h => h.id === id);
-  if (!hw) return;
-
-  document.getElementById('view-subject').textContent = hw.subject || 'General';
-  document.getElementById('view-title').textContent   = hw.title;
-  document.getElementById('view-due').textContent     = hw.due
-    ? `Due ${new Date(hw.due + 'T00:00:00').toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}`
-    : 'No due date';
-  document.getElementById('view-notes').textContent = hw.notes || 'No notes.';
-
-  const docLink      = document.getElementById('view-doc-link');
-  const practiceLink = document.getElementById('view-practice-link');
-
-  docLink.classList.toggle('hidden', !hw.doc);
-  if (hw.doc) docLink.href = hw.doc;
-
-  practiceLink.classList.toggle('hidden', !hw.practiceLink);
-  if (hw.practiceLink) practiceLink.href = hw.practiceLink;
-
-  const editBtn = document.getElementById('view-edit');
-  editBtn.classList.toggle('hidden', !isTeacher || !!hw.builtin);
-  editBtn.dataset.id = id;
-
-  document.getElementById('view-modal').classList.remove('hidden');
-}
-
-function closeView() {
-  document.getElementById('view-modal').classList.add('hidden');
-}
-
-// ---- Student management (teacher only) ----
-function openStudentModal() {
-  renderStudentList();
-  document.getElementById('student-modal').classList.remove('hidden');
-}
-
-function closeStudentModal() {
-  document.getElementById('student-modal').classList.add('hidden');
-}
-
-function renderStudentList() {
-  const users = getUsers();
-  const list  = document.getElementById('student-list');
-  list.innerHTML = '';
-
-  const students = Object.entries(users).filter(([,u]) => u.role === 'student');
-
-  if (students.length === 0) {
-    list.innerHTML = '<div class="student-empty">No students yet.</div>';
-    return;
-  }
-
-  students.forEach(([username, u]) => {
-    const row = document.createElement('div');
-    row.className = 'student-row';
-    row.innerHTML = `
-      <div class="student-info">
-        <span class="student-name">${escHtml(u.name || username)}</span>
-        <span class="student-username">@${escHtml(username)}</span>
-      </div>
-      <button class="hw-delete" data-username="${escHtml(username)}" title="Remove student">×</button>
-    `;
-    row.querySelector('.hw-delete').addEventListener('click', () => removeStudent(username));
-    list.appendChild(row);
-  });
-}
-
-function addStudent() {
-  const name     = document.getElementById('new-student-name').value.trim();
-  const username = document.getElementById('new-student-user').value.trim().toLowerCase();
-  const password = document.getElementById('new-student-pass').value.trim();
-
-  if (!name || !username || !password) return;
-
-  const users = getUsers();
-  if (users[username]) {
-    alert('Username already exists.');
-    return;
-  }
-
-  users[username] = { name, password, role: 'student' };
-  saveUsers(users);
-
-  document.getElementById('new-student-name').value = '';
-  document.getElementById('new-student-user').value = '';
-  document.getElementById('new-student-pass').value = '';
-
-  renderStudentList();
-}
-
-function removeStudent(username) {
-  const users = getUsers();
-  delete users[username];
-  saveUsers(users);
-  renderStudentList();
-}
-
-// ---- Nav setup ----
-function setupNav() {
-  document.getElementById('nav-username').textContent = session.username;
-  if (isTeacher) {
-    document.getElementById('add-hw-btn').classList.remove('hidden');
-    document.getElementById('manage-students-btn').classList.remove('hidden');
-  }
-}
-
-// ---- Event listeners ----
-document.getElementById('add-hw-btn').addEventListener('click', () => openAddModal());
-document.getElementById('hw-cancel').addEventListener('click', closeAddModal);
-document.getElementById('hw-save').addEventListener('click', saveHwItem);
-document.getElementById('view-close').addEventListener('click', closeView);
-document.getElementById('view-edit').addEventListener('click', e => {
-  closeView(); openAddModal(e.target.dataset.id);
-});
-document.getElementById('manage-students-btn').addEventListener('click', openStudentModal);
-document.getElementById('student-close').addEventListener('click', closeStudentModal);
-document.getElementById('add-student-btn').addEventListener('click', addStudent);
-
-document.getElementById('hw-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('hw-modal')) closeAddModal();
-});
-document.getElementById('view-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('view-modal')) closeView();
-});
-document.getElementById('student-modal').addEventListener('click', e => {
-  if (e.target === document.getElementById('student-modal')) closeStudentModal();
-});
-
+// ---- FILTERS ----
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -371,11 +119,176 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
   });
 });
 
-document.getElementById('hw-modal').addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') saveHwItem();
-  if (e.key === 'Escape') closeAddModal();
+// ---- EDITOR ----
+function openEditor(id = null) {
+  editingId = id;
+  blocks = [];
+  document.getElementById('hw-id').value = id || '';
+  document.getElementById('editor-msg').textContent = '';
+
+  if (id) {
+    const hw = allAssignments.find(a => a.sk === id);
+    if (hw) {
+      document.getElementById('editor-title').textContent = 'Edit Assignment';
+      document.getElementById('hw-title-input').value = hw.title || '';
+      document.getElementById('hw-subject').value = hw.subject || '';
+      document.getElementById('hw-due').value = hw.dueDate || '';
+      document.getElementById('hw-course').value = hw.courseId || '';
+      document.getElementById('hw-assign').value = hw.assignedTo === 'all' ? '' : (Array.isArray(hw.assignedTo) ? hw.assignedTo.join(', ') : hw.assignedTo);
+      try { blocks = JSON.parse(hw.content); } catch { blocks = []; }
+    }
+  } else {
+    document.getElementById('editor-title').textContent = 'New Assignment';
+    ['hw-title-input','hw-subject','hw-due','hw-assign'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('hw-course').value = '';
+  }
+
+  renderEditorBlocks();
+  document.getElementById('editor-overlay').classList.remove('hidden');
+  document.getElementById('editor-panel').classList.remove('hidden');
+  setTimeout(() => document.getElementById('editor-panel').classList.add('open'), 10);
+}
+
+function closeEditor() {
+  document.getElementById('editor-panel').classList.remove('open');
+  setTimeout(() => {
+    document.getElementById('editor-panel').classList.add('hidden');
+    document.getElementById('editor-overlay').classList.add('hidden');
+  }, 300);
+}
+
+document.getElementById('add-hw-btn').addEventListener('click', () => openEditor());
+document.getElementById('editor-close').addEventListener('click', closeEditor);
+document.getElementById('editor-cancel').addEventListener('click', closeEditor);
+document.getElementById('editor-overlay').addEventListener('click', closeEditor);
+
+document.getElementById('editor-save').addEventListener('click', async () => {
+  const msg = document.getElementById('editor-msg');
+  const title = document.getElementById('hw-title-input').value.trim();
+  const id = document.getElementById('hw-id').value;
+  if (!title) { msg.textContent = 'Title required.'; msg.className = 'msg error'; return; }
+  msg.textContent = 'Saving...'; msg.className = 'msg';
+
+  const assignRaw = document.getElementById('hw-assign').value.trim();
+  const assignedTo = assignRaw ? assignRaw.split(',').map(s => s.trim()).filter(Boolean) : 'all';
+
+  const payload = {
+    title,
+    subject: document.getElementById('hw-subject').value.trim(),
+    dueDate: document.getElementById('hw-due').value,
+    courseId: document.getElementById('hw-course').value,
+    assignedTo,
+    content: JSON.stringify(blocks)
+  };
+
+  const method = id ? 'PUT' : 'POST';
+  const endpoint = id ? `/assignments/${id}` : '/assignments';
+  const res = await AUTH.api(method, endpoint, payload);
+  if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
+  msg.textContent = 'Saved.'; msg.className = 'msg success';
+  setTimeout(async () => {
+    closeEditor();
+    const assignments = await AUTH.api('GET', '/assignments');
+    allAssignments = Array.isArray(assignments) ? assignments : [];
+    render();
+  }, 800);
 });
 
-// ---- Init ----
-setupNav();
-render();
+// ---- BLOCK EDITOR (shared with handout) ----
+function addBlock(type) {
+  const block = { type, id: Date.now() + Math.random() };
+  if (type === 'header') block.text = '';
+  if (type === 'paragraph') block.text = '';
+  if (type === 'bullets') block.items = [''];
+  if (type === 'image') { block.url = ''; block.alt = ''; }
+  if (type === 'file') { block.url = ''; block.name = ''; }
+  if (type === 'math') block.formula = '';
+  blocks.push(block);
+  renderEditorBlocks();
+}
+
+document.querySelectorAll('.block-add-btn').forEach(btn => {
+  btn.addEventListener('click', () => addBlock(btn.dataset.type));
+});
+
+window.moveBlock = (idx, dir) => {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= blocks.length) return;
+  [blocks[idx], blocks[newIdx]] = [blocks[newIdx], blocks[idx]];
+  renderEditorBlocks();
+};
+
+window.removeBlock = (idx) => { blocks.splice(idx, 1); renderEditorBlocks(); };
+window.addBullet = (idx) => { blocks[idx].items.push(''); renderEditorBlocks(); };
+window.removeBullet = (idx, i) => { blocks[idx].items.splice(i, 1); if (!blocks[idx].items.length) blocks[idx].items = ['']; renderEditorBlocks(); };
+
+function renderEditorBlocks() {
+  const container = document.getElementById('blocks-container');
+  container.innerHTML = '';
+  if (!blocks.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:13px;text-align:center;padding:40px 0">Use the toolbar above to add content blocks.</p>';
+    return;
+  }
+  blocks.forEach((block, idx) => {
+    const el = document.createElement('div');
+    el.className = 'block';
+    el.innerHTML = `
+      <div class="block-controls">
+        <button class="block-ctrl-btn" onclick="moveBlock(${idx},-1)">↑</button>
+        <button class="block-ctrl-btn" onclick="moveBlock(${idx},1)">↓</button>
+        <button class="block-ctrl-btn del" onclick="removeBlock(${idx})">×</button>
+      </div>
+      ${blockEditorHTML(block, idx)}`;
+    container.appendChild(el);
+    attachBlockEvents(el, block, idx);
+  });
+}
+
+function blockEditorHTML(block, idx) {
+  if (block.type === 'header') return `<div class="block-label">Header</div><input type="text" class="block-field" data-idx="${idx}" data-field="text" placeholder="Header text..." value="${escAttr(block.text||'')}" />`;
+  if (block.type === 'paragraph') return `<div class="block-label">Paragraph</div><textarea class="block-field" data-idx="${idx}" data-field="text" placeholder="Write text here..." rows="4">${escHtml(block.text||'')}</textarea>`;
+  if (block.type === 'bullets') return `<div class="block-label">Bullet List</div><div id="bullets-${idx}">${(block.items||['']).map((item,i)=>`<div style="display:flex;gap:6px;margin-bottom:6px"><input type="text" class="bullet-item" data-idx="${idx}" data-item="${i}" placeholder="List item..." value="${escAttr(item)}" style="flex:1"/><button class="block-ctrl-btn del" onclick="removeBullet(${idx},${i})">×</button></div>`).join('')}</div><button class="block-add-btn" onclick="addBullet(${idx})" style="margin-top:4px">+ Add item</button>`;
+  if (block.type === 'image') return `<div class="block-label">Image</div><div class="block-upload-area" onclick="document.getElementById('img-upload-${idx}').click()"><input type="file" id="img-upload-${idx}" accept="image/*" data-idx="${idx}" data-type="image"/>${block.url?`<img src="${escAttr(block.url)}" class="block-upload-preview"/>`:'<div class="block-upload-label">Click to upload image</div>'}<div class="upload-progress" id="img-progress-${idx}"></div></div><input type="text" class="block-field" data-idx="${idx}" data-field="alt" placeholder="Alt text (optional)" value="${escAttr(block.alt||'')}" style="margin-top:8px"/>`;
+  if (block.type === 'file') return `<div class="block-label">File Attachment</div><div class="block-upload-area" onclick="document.getElementById('file-upload-${idx}').click()"><input type="file" id="file-upload-${idx}" data-idx="${idx}" data-type="file"/>${block.url?`<div class="block-upload-filename">📎 ${escHtml(block.name||'File attached')}</div>`:'<div class="block-upload-label">Click to upload file</div>'}<div class="upload-progress" id="file-progress-${idx}"></div></div>`;
+  if (block.type === 'math') return `<div class="block-label">Math Equation (LaTeX)</div><input type="text" class="block-field math-input" data-idx="${idx}" data-field="formula" placeholder="e.g. \\frac{a}{b}" value="${escAttr(block.formula||'')}"/><div class="math-preview" id="math-preview-${idx}">${renderMath(block.formula||'')}</div>`;
+  if (block.type === 'divider') return `<div class="block-label">Divider</div><hr style="border-color:var(--border);margin-top:4px"/>`;
+  return '';
+}
+
+function attachBlockEvents(el, block, idx) {
+  el.querySelectorAll('.block-field').forEach(input => {
+    input.addEventListener('input', e => {
+      blocks[e.target.dataset.idx][e.target.dataset.field] = e.target.value;
+      if (block.type === 'math') document.getElementById(`math-preview-${idx}`).innerHTML = renderMath(e.target.value);
+    });
+  });
+  el.querySelectorAll('.bullet-item').forEach(input => {
+    input.addEventListener('input', e => { blocks[idx].items[parseInt(e.target.dataset.item)] = e.target.value; });
+  });
+  el.querySelectorAll('input[type="file"]').forEach(input => {
+    input.addEventListener('change', e => handleUpload(e, idx));
+  });
+}
+
+async function handleUpload(e, idx) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const type = e.target.dataset.type;
+  const progressEl = document.getElementById(`${type === 'image' ? 'img' : 'file'}-progress-${idx}`);
+  progressEl.textContent = 'Uploading...';
+  const res = await AUTH.api('POST', '/upload-url', { filename: file.name, contentType: file.type });
+  if (res.error) { progressEl.textContent = 'Upload failed.'; return; }
+  await fetch(res.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+  blocks[idx].url = res.publicUrl;
+  if (type === 'file') blocks[idx].name = file.name;
+  progressEl.textContent = 'Uploaded.';
+  renderEditorBlocks();
+}
+
+function renderMath(formula) {
+  if (!formula) return '';
+  try { return katex.renderToString(formula, { throwOnError: false, displayMode: true }); }
+  catch { return `<span style="color:#e05252">Invalid formula</span>`; }
+}
+
+init();

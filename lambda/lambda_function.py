@@ -93,9 +93,9 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /assignments — create assignment (teacher only)
+    # POST /assignments — create assignment (teacher/admin only)
     if method == 'POST' and path == '/prod/assignments':
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         body = json.loads(event.get('body') or '{}')
         if not body.get('title'):
@@ -104,8 +104,10 @@ def lambda_handler(event, context):
         table.put_item(Item={
             'pk': 'ASSIGNMENT', 'sk': item_id,
             'title': body['title'],
-            'description': body.get('description', ''),
+            'subject': body.get('subject', ''),
+            'content': body.get('content', ''),
             'dueDate': body.get('dueDate', ''),
+            'courseId': body.get('courseId', ''),
             'assignedTo': body.get('assignedTo', 'all'),
             'createdAt': datetime.now(timezone.utc).isoformat()
         })
@@ -113,18 +115,79 @@ def lambda_handler(event, context):
 
     # GET /assignments
     if method == 'GET' and path == '/prod/assignments':
-        result = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT')
-        )
-        return resp(200, result['Items'])
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            result = table.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT')
+            )
+            items = result.get('Items', [])
+            role = get_role(event)
+            if role in ('teacher', 'admin'):
+                return resp(200, items)
+            # Students only see assignments for them or 'all'
+            visible = [a for a in items if a.get('assignedTo') == 'all' or username in (a.get('assignedTo') or [])]
+            return resp(200, visible)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
 
-    # DELETE /assignments/{id} (teacher only)
+    # PUT /assignments/{id} — update (teacher/admin only)
+    if method == 'PUT' and path.startswith('/prod/assignments/'):
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        item_id = path.split('/')[-1]
+        body = json.loads(event.get('body') or '{}')
+        if not body.get('title'):
+            return resp(400, {'error': 'Missing title'})
+        table.put_item(Item={
+            'pk': 'ASSIGNMENT', 'sk': item_id,
+            'title': body['title'],
+            'subject': body.get('subject', ''),
+            'content': body.get('content', ''),
+            'dueDate': body.get('dueDate', ''),
+            'courseId': body.get('courseId', ''),
+            'assignedTo': body.get('assignedTo', 'all'),
+            'updatedAt': datetime.now(timezone.utc).isoformat()
+        })
+        return resp(200, {'message': 'Assignment updated'})
+
+    # DELETE /assignments/{id} (teacher/admin only)
     if method == 'DELETE' and path.startswith('/prod/assignments/'):
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         table.delete_item(Key={'pk': 'ASSIGNMENT', 'sk': item_id})
         return resp(200, {'message': 'Deleted'})
+
+    # POST /assignments/{id}/done — mark done for student
+    if method == 'POST' and path.startswith('/prod/assignments/') and path.endswith('/done'):
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            item_id = path.split('/')[3]
+            body = json.loads(event.get('body') or '{}')
+            done = body.get('done', True)
+            table.put_item(Item={
+                'pk': f'DONE#{username}', 'sk': item_id,
+                'done': done,
+                'updatedAt': datetime.now(timezone.utc).isoformat()
+            })
+            return resp(200, {'message': 'Updated'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # GET /assignments/done — get done state for current user
+    if method == 'GET' and path == '/prod/assignments/done':
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            result = table.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'DONE#{username}')
+            )
+            done_map = {item['sk']: item.get('done', False) for item in result.get('Items', [])}
+            return resp(200, done_map)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
 
     # POST /handouts — create handout (teacher only)
     if method == 'POST' and path == '/prod/handouts':

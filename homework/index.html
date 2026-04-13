@@ -7,20 +7,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="stylesheet" href="style.css?v=6" />
   <script src="../auth.js"></script>
   <script>AUTH.requireAuth();</script>
 </head>
 <body>
-
   <nav class="navbar">
     <a href="../main/index.html" class="back-link">← Dashboard</a>
     <span class="nav-brand">Homework</span>
     <div class="nav-right">
       <span id="nav-username" class="nav-username"></span>
-      <button id="manage-students-btn" class="nav-btn hidden">� Students</button>
       <button id="add-hw-btn" class="nav-btn primary hidden">+ Assignment</button>
-
     </div>
   </nav>
 
@@ -34,75 +33,44 @@
     <div id="hw-empty" class="empty-state hidden">No assignments here.</div>
   </main>
 
-  <!-- Add/Edit Modal (teacher) -->
-  <div id="hw-modal" class="modal hidden">
-    <div class="modal-card">
-      <h3 id="modal-title">New Assignment</h3>
-
-      <label>Subject</label>
-      <input type="text" id="hw-subject" placeholder="e.g. Math, Science" />
-
-      <label>Title</label>
-      <input type="text" id="hw-title-input" placeholder="Assignment title" />
-
-      <label>Due Date</label>
-      <input type="date" id="hw-due" />
-
-      <label>Practice Page Link <span class="optional">(optional)</span></label>
-      <input type="text" id="hw-practice" placeholder="e.g. practice-g9-winter-1.html" />
-
-      <label>Google Doc Link <span class="optional">(optional)</span></label>
-      <input type="url" id="hw-doc" placeholder="https://docs.google.com/..." />
-
-      <label>Notes <span class="optional">(optional)</span></label>
-      <textarea id="hw-notes" placeholder="Any extra notes..."></textarea>
-
-      <label>Assign To <span class="optional">(leave blank for all students)</span></label>
-      <input type="text" id="hw-assign" placeholder="e.g. alice, bob  (comma-separated usernames)" />
-
-      <div class="modal-actions">
-        <button id="hw-cancel">Cancel</button>
-        <button id="hw-save" class="primary">Save</button>
-      </div>
+  <!-- Editor Panel -->
+  <div id="editor-overlay" class="editor-overlay hidden"></div>
+  <div id="editor-panel" class="editor-panel hidden">
+    <div class="editor-header">
+      <h2 id="editor-title">New Assignment</h2>
+      <button id="editor-close" class="editor-close">×</button>
     </div>
-  </div>
-
-  <!-- View Modal -->
-  <div id="view-modal" class="modal hidden">
-    <div class="modal-card">
-      <div class="view-header">
-        <div>
-          <div id="view-subject" class="view-subject"></div>
-          <h3 id="view-title"></h3>
-        </div>
-        <button id="view-close">×</button>
+    <div class="editor-meta">
+      <input type="hidden" id="hw-id" />
+      <div style="display:flex;gap:10px">
+        <input type="text" id="hw-subject" placeholder="Subject (e.g. Math)" class="editor-input" style="flex:1" />
+        <input type="date" id="hw-due" class="editor-input" style="flex:1" />
       </div>
-      <div id="view-due" class="view-meta"></div>
-      <div id="view-notes" class="view-notes"></div>
-      <div class="modal-actions">
-        <button id="view-edit" class="hidden">Edit</button>
-        <a id="view-practice-link" href="#" target="_blank" rel="noopener noreferrer" class="primary btn-link hidden">📝 Open Practice</a>
-        <a id="view-doc-link" href="#" target="_blank" rel="noopener noreferrer" class="primary btn-link hidden">Open Doc</a>
-      </div>
+      <input type="text" id="hw-title-input" placeholder="Assignment title..." class="editor-title-input" />
+      <select id="hw-course" class="editor-select">
+        <option value="">No course</option>
+      </select>
+      <input type="text" id="hw-assign" placeholder="Assign to (leave blank for all, or comma-separated usernames)" class="editor-input" />
     </div>
-  </div>
 
-  <!-- Student Management Modal (teacher only) -->
-  <div id="student-modal" class="modal hidden">
-    <div class="modal-card" style="max-width:460px;">
-      <div class="view-header">
-        <h3>Manage Students</h3>
-        <button id="student-close">×</button>
-      </div>
+    <div class="block-toolbar">
+      <span class="toolbar-label">Add block:</span>
+      <button class="block-add-btn" data-type="header">H Header</button>
+      <button class="block-add-btn" data-type="paragraph">¶ Text</button>
+      <button class="block-add-btn" data-type="bullets">• List</button>
+      <button class="block-add-btn" data-type="image">🖼 Image</button>
+      <button class="block-add-btn" data-type="file">📎 File</button>
+      <button class="block-add-btn" data-type="math">∑ Math</button>
+      <button class="block-add-btn" data-type="divider">— Divider</button>
+    </div>
 
-      <div id="student-list" class="student-list"></div>
+    <div id="blocks-container" class="blocks-container"></div>
 
-      <div class="student-add-form">
-        <div class="student-add-title">Add Student</div>
-        <input type="text" id="new-student-name" placeholder="Full name" />
-        <input type="text" id="new-student-user" placeholder="Username (no spaces)" />
-        <input type="password" id="new-student-pass" placeholder="Password" />
-        <button id="add-student-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;background:#1c69d4;color:white;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;margin-top:4px;">Add Student</button>
+    <div class="editor-footer">
+      <p id="editor-msg" class="msg"></p>
+      <div class="editor-actions">
+        <button id="editor-cancel" class="btn">Cancel</button>
+        <button id="editor-save" class="btn primary">Save Assignment</button>
       </div>
     </div>
   </div>

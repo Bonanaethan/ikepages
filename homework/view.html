@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assignment</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="../auth.js"></script>
+  <script>AUTH.requireAuth();</script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg:#0f1117;--surface:#1a1d27;--surface2:#222536;--border:#2e3248;--text:#e8eaf0;--muted:#6b7280;--yellow:#f9a825;--shadow:0 2px 12px rgba(0,0,0,0.4); }
+    body { font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh; }
+    .navbar { display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100; }
+    .back-link { color:var(--muted);text-decoration:none;font-size:13px;transition:color 0.2s; }
+    .back-link:hover { color:var(--yellow); }
+    .nav-title { font-size:15px;font-weight:600; }
+    .content { max-width:800px;margin:0 auto;padding:48px 24px 80px; }
+    .hw-subject { font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--yellow);font-weight:600;margin-bottom:6px; }
+    .hw-title { font-size:28px;font-weight:700;margin-bottom:8px; }
+    .hw-meta { font-size:13px;color:var(--muted);margin-bottom:32px; }
+    .hw-meta.overdue { color:#f87171; }
+    .done-btn { display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;transition:all 0.2s;margin-bottom:32px; }
+    .done-btn.done { border-color:#4caf50;color:#4caf50; }
+    .done-btn:hover { border-color:var(--yellow); }
+    .block { margin-bottom:20px; }
+    .render-header { font-size:22px;font-weight:700;margin-bottom:4px; }
+    .render-paragraph { font-size:15px;color:var(--muted);line-height:1.8;white-space:pre-wrap; }
+    .render-bullets { padding-left:24px; }
+    .render-bullets li { font-size:15px;color:var(--muted);line-height:1.9; }
+    .render-image { max-width:100%;border-radius:10px;margin:4px 0;box-shadow:var(--shadow); }
+    .render-file { display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-decoration:none;color:var(--text);font-size:14px;transition:border-color 0.2s; }
+    .render-file:hover { border-color:var(--yellow); }
+    .render-divider { border:none;border-top:1px solid var(--border);margin:8px 0; }
+    .render-math { overflow-x:auto;padding:8px 0; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="index.html" class="back-link">← Homework</a>
+    <span class="nav-title" id="nav-title">Assignment</span>
+    <span></span>
+  </nav>
+  <main class="content">
+    <div id="loading" style="color:var(--muted);font-size:14px">Loading...</div>
+    <div id="hw-view" style="display:none">
+      <div class="hw-subject" id="view-subject"></div>
+      <div class="hw-title" id="view-title"></div>
+      <div class="hw-meta" id="view-meta"></div>
+      <button class="done-btn" id="done-btn">☐ Mark as done</button>
+      <div id="view-blocks"></div>
+    </div>
+  </main>
+  <script>
+    const id = new URLSearchParams(window.location.search).get('id');
+    if (!id) window.location.href = 'index.html';
+
+    function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escAttr(s) { return String(s).replace(/"/g,'&quot;'); }
+    function renderMath(f) { try { return katex.renderToString(f,{throwOnError:false,displayMode:true}); } catch { return '<span style="color:#e05252">Invalid</span>'; } }
+
+    function renderBlocks(blocks) {
+      return (blocks||[]).map(b => {
+        let html = '';
+        if (b.type==='header') html=`<div class="render-header">${escHtml(b.text||'')}</div>`;
+        else if (b.type==='paragraph') html=`<div class="render-paragraph">${escHtml(b.text||'')}</div>`;
+        else if (b.type==='bullets') html=`<ul class="render-bullets">${(b.items||[]).map(i=>`<li>${escHtml(i)}</li>`).join('')}</ul>`;
+        else if (b.type==='image'&&b.url) html=`<img src="${escAttr(b.url)}" alt="${escAttr(b.alt||'')}" class="render-image"/>`;
+        else if (b.type==='file'&&b.url) html=`<a href="${escAttr(b.url)}" target="_blank" class="render-file">📎 ${escHtml(b.name||'Download')}</a>`;
+        else if (b.type==='math'&&b.formula) html=`<div class="render-math">${renderMath(b.formula)}</div>`;
+        else if (b.type==='divider') html=`<hr class="render-divider"/>`;
+        return `<div class="block">${html}</div>`;
+      }).join('');
+    }
+
+    let isDone = false;
+
+    (async () => {
+      const [assignments, doneMap] = await Promise.all([
+        AUTH.api('GET', '/assignments'),
+        AUTH.api('GET', '/assignments/done')
+      ]);
+      const hw = Array.isArray(assignments) ? assignments.find(a => a.sk === id) : null;
+      document.getElementById('loading').style.display = 'none';
+      if (!hw) { document.getElementById('hw-view').innerHTML = '<p style="color:var(--muted)">Assignment not found.</p>'; document.getElementById('hw-view').style.display=''; return; }
+
+      isDone = !!(doneMap||{})[id];
+      const overdue = hw.dueDate && !isDone && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+      const dueText = hw.dueDate
+        ? `Due ${new Date(hw.dueDate+'T00:00:00').toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}`
+        : 'No due date';
+
+      document.getElementById('nav-title').textContent = hw.title;
+      document.getElementById('view-subject').textContent = hw.subject || 'General';
+      document.getElementById('view-title').textContent = hw.title;
+      const meta = document.getElementById('view-meta');
+      meta.textContent = (overdue ? '⚠ Overdue · ' : '') + dueText;
+      if (overdue) meta.classList.add('overdue');
+
+      const doneBtn = document.getElementById('done-btn');
+      function updateDoneBtn() {
+        doneBtn.textContent = isDone ? '✓ Done' : '☐ Mark as done';
+        doneBtn.className = 'done-btn' + (isDone ? ' done' : '');
+      }
+      updateDoneBtn();
+      doneBtn.addEventListener('click', async () => {
+        isDone = !isDone;
+        updateDoneBtn();
+        await AUTH.api('POST', `/assignments/${id}/done`, { done: isDone });
+      });
+
+      let blocks = [];
+      try { blocks = JSON.parse(hw.content); } catch {}
+      document.getElementById('view-blocks').innerHTML = renderBlocks(blocks);
+      document.getElementById('hw-view').style.display = '';
+    })();
+  </script>
+</body>
+</html>
