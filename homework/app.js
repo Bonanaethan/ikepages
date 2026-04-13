@@ -10,6 +10,19 @@ let blocks = [];
 let editingId = null;
 let currentFilter = 'all';
 
+// Built-in assignments (always present)
+const BUILTINS = [
+  {
+    sk: '__builtin_g9w1__',
+    title: 'MathMind G9 — Winter Practice 1',
+    subject: 'Math',
+    dueDate: '',
+    courseId: '',
+    builtin: true,
+    practiceLink: 'practice-g9-winter-1.html'
+  }
+];
+
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -39,7 +52,9 @@ function render() {
   const empty = document.getElementById('hw-empty');
   list.innerHTML = '';
 
-  let filtered = allAssignments.filter(hw => {
+  const all = [...BUILTINS, ...allAssignments];
+
+  let filtered = all.filter(hw => {
     const done = !!doneMap[hw.sk];
     if (currentFilter === 'pending') return !done;
     if (currentFilter === 'done') return done;
@@ -47,6 +62,8 @@ function render() {
   });
 
   filtered.sort((a, b) => {
+    if (a.builtin && !b.builtin) return -1;
+    if (!a.builtin && b.builtin) return 1;
     const da = !!doneMap[a.sk], db = !!doneMap[b.sk];
     if (da !== db) return da ? 1 : -1;
     if (!a.dueDate && !b.dueDate) return 0;
@@ -76,15 +93,20 @@ function render() {
         <div class="hw-card-meta ${overdue ? 'overdue' : ''}">${overdue ? '⚠ Overdue · ' : ''}${dueText}</div>
       </div>
       <div class="hw-card-actions">
-        ${isTeacher ? `
+        ${hw.practiceLink ? `<a class="hw-doc-badge" href="${escHtml(hw.practiceLink)}" target="_blank" rel="noopener noreferrer">📝 Practice</a>` : ''}
+        ${isTeacher && !hw.builtin ? `
           <button class="hw-edit-btn" data-id="${hw.sk}" title="Edit">✏</button>
           <button class="hw-delete" data-id="${hw.sk}" title="Delete">×</button>
         ` : ''}
       </div>`;
 
-    card.querySelector('.hw-card-body').addEventListener('click', () => {
-      window.location.href = `view.html?id=${hw.sk}`;
-    });
+    // Click body to view (only for non-builtin or builtin without practiceLink)
+    if (!hw.builtin) {
+      card.querySelector('.hw-card-body').addEventListener('click', () => {
+        window.location.href = `view.html?id=${hw.sk}`;
+      });
+    }
+
     card.querySelector('.hw-check').addEventListener('click', e => {
       e.stopPropagation();
       toggleDone(hw.sk);

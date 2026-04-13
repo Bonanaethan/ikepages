@@ -81,8 +81,9 @@ body {
   white-space: nowrap;
 }
 .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
-.nav-btn.primary { background: var(--yellow); border-color: var(--yellow); color: #1a1a1a; }
-.nav-btn.primary:hover { background: #e69100; }
+.nav-btn.primary { background: var(--yellow); border-color: var(--yellow); color: #1a1a1a; font-weight: 700; padding: 8px 18px; border-radius: 8px; font-size: 13px; box-shadow: 0 2px 8px rgba(249,168,37,0.3); letter-spacing: 0.2px; }
+.nav-btn.primary:hover { background: #e69100; box-shadow: 0 4px 14px rgba(249,168,37,0.4); transform: translateY(-1px); }
+.nav-btn.primary:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(249,168,37,0.2); }
 
 /* ---- CONTENT ---- */
 .content { max-width: 860px; margin: 40px auto; padding: 0 24px; }
