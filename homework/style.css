@@ -365,3 +365,31 @@ input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; filter:
 .msg { font-size:13px;color:var(--muted);min-height:18px; }
 .msg.error { color:#e05252; }
 .msg.success { color:#4caf50; }
+
+/* Editor action buttons */
+.editor-actions .btn {
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.2s;
+}
+.editor-actions .btn:hover { color: var(--text); border-color: #555; }
+.editor-actions .btn.primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a1a1a;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(249,168,37,0.3);
+}
+.editor-actions .btn.primary:hover {
+  background: #e69100;
+  box-shadow: 0 4px 14px rgba(249,168,37,0.4);
+  transform: translateY(-1px);
+}
+.editor-actions .btn.primary:active { transform: translateY(0); }
