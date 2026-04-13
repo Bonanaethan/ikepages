@@ -202,7 +202,7 @@ function addBlock(type) {
   if (type === 'bullets') block.items = [''];
   if (type === 'image') { block.url = ''; block.alt = ''; }
   if (type === 'file') { block.url = ''; block.name = ''; }
-  if (type === 'math') block.formula = '';
+  if (type === 'question') { block.question = ''; block.hint = ''; block.answer = ''; block.solution = ''; block.type = 'question'; }
   blocks.push(block);
   renderEditorBlocks();
 }
@@ -252,7 +252,12 @@ function blockEditorHTML(block, idx) {
   if (block.type === 'file') return `<div class="block-label">File Attachment</div><div class="block-upload-area" onclick="document.getElementById('file-upload-${idx}').click()"><input type="file" id="file-upload-${idx}" data-idx="${idx}" data-type="file"/>${block.url?`<div class="block-upload-filename">📎 ${escHtml(block.name||'File attached')}</div>`:'<div class="block-upload-label">Click to upload file</div>'}<div class="upload-progress" id="file-progress-${idx}"></div></div>`;
   if (block.type === 'math') return `<div class="block-label">Math Equation (LaTeX)</div><input type="text" class="block-field math-input" data-idx="${idx}" data-field="formula" placeholder="e.g. \\frac{a}{b}" value="${escAttr(block.formula||'')}"/><div class="math-preview" id="math-preview-${idx}">${renderMath(block.formula||'')}</div>`;
   if (block.type === 'divider') return `<div class="block-label">Divider</div><hr style="border-color:var(--border);margin-top:4px"/>`;
-  return '';
+  if (block.type === 'question') return `
+    <div class="block-label">Question</div>
+    <textarea class="block-field" data-idx="${idx}" data-field="question" placeholder="Question text (supports LaTeX with \\( \\) or \\[ \\])" rows="3">${escHtml(block.question||'')}</textarea>
+    <input type="text" class="block-field" data-idx="${idx}" data-field="hint" placeholder="Hint (optional)" value="${escAttr(block.hint||'')}" style="margin-top:6px"/>
+    <input type="text" class="block-field" data-idx="${idx}" data-field="answer" placeholder="Correct answer (students must match this exactly)" value="${escAttr(block.answer||'')}" style="margin-top:6px"/>
+    <textarea class="block-field" data-idx="${idx}" data-field="solution" placeholder="Solution explanation (shown when student clicks 'Show Solution')" rows="3" style="margin-top:6px">${escHtml(block.solution||'')}</textarea>`;
 }
 
 function attachBlockEvents(el, block, idx) {

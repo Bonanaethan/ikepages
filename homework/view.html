@@ -6,78 +6,218 @@
   <title>Assignment</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <link rel="stylesheet" href="practice.css?v=5" />
   <script src="../auth.js"></script>
   <script>AUTH.requireAuth();</script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root { --bg:#0f1117;--surface:#1a1d27;--surface2:#222536;--border:#2e3248;--text:#e8eaf0;--muted:#6b7280;--yellow:#f9a825;--shadow:0 2px 12px rgba(0,0,0,0.4); }
-    body { font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh; }
-    .navbar { display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100; }
-    .back-link { color:var(--muted);text-decoration:none;font-size:13px;transition:color 0.2s; }
-    .back-link:hover { color:var(--yellow); }
-    .nav-title { font-size:15px;font-weight:600; }
-    .content { max-width:800px;margin:0 auto;padding:48px 24px 80px; }
-    .hw-subject { font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--yellow);font-weight:600;margin-bottom:6px; }
-    .hw-title { font-size:28px;font-weight:700;margin-bottom:8px; }
-    .hw-meta { font-size:13px;color:var(--muted);margin-bottom:32px; }
-    .hw-meta.overdue { color:#f87171; }
-    .done-btn { display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 18px;color:var(--text);font-size:13px;font-family:inherit;cursor:pointer;transition:all 0.2s;margin-bottom:32px; }
-    .done-btn.done { border-color:#4caf50;color:#4caf50; }
-    .done-btn:hover { border-color:var(--yellow); }
-    .block { margin-bottom:20px; }
-    .render-header { font-size:22px;font-weight:700;margin-bottom:4px; }
-    .render-paragraph { font-size:15px;color:var(--muted);line-height:1.8;white-space:pre-wrap; }
-    .render-bullets { padding-left:24px; }
-    .render-bullets li { font-size:15px;color:var(--muted);line-height:1.9; }
-    .render-image { max-width:100%;border-radius:10px;margin:4px 0;box-shadow:var(--shadow); }
-    .render-file { display:inline-flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 16px;text-decoration:none;color:var(--text);font-size:14px;transition:border-color 0.2s; }
-    .render-file:hover { border-color:var(--yellow); }
-    .render-divider { border:none;border-top:1px solid var(--border);margin:8px 0; }
-    .render-math { overflow-x:auto;padding:8px 0; }
-  </style>
 </head>
 <body>
-  <nav class="navbar">
-    <a href="index.html" class="back-link">← Homework</a>
+  <nav>
+    <a href="index.html" class="nav-back">← Homework</a>
     <span class="nav-title" id="nav-title">Assignment</span>
-    <span></span>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="nav-score" id="nav-score">0 / 0 correct</span>
+      <button id="wb-toggle" style="background:rgba(77,159,255,0.15);border:1px solid rgba(77,159,255,0.3);color:#4d9fff;border-radius:6px;padding:6px 12px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;white-space:nowrap;">✎ Whiteboard</button>
+    </div>
   </nav>
-  <main class="content">
-    <div id="loading" style="color:var(--muted);font-size:14px">Loading...</div>
+
+  <main>
+    <div id="loading" style="color:var(--muted,#6b7280);font-size:14px;padding:40px 0;text-align:center">Loading...</div>
     <div id="hw-view" style="display:none">
-      <div class="hw-subject" id="view-subject"></div>
-      <div class="hw-title" id="view-title"></div>
-      <div class="hw-meta" id="view-meta"></div>
-      <button class="done-btn" id="done-btn">☐ Mark as done</button>
+      <div class="page-header">
+        <h1 id="view-title"></h1>
+        <p id="view-subject"></p>
+        <div id="view-meta" style="font-size:13px;color:#6b7280;margin-top:6px"></div>
+      </div>
+
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+
       <div id="view-blocks"></div>
+
+      <div style="text-align:center;margin:8px 0 32px;">
+        <button id="submit-btn" class="check-btn" style="padding:13px 40px;font-size:15px;border-radius:10px;">Submit</button>
+      </div>
+
+      <div id="score-summary">
+        <h2>Complete</h2>
+        <div class="score-big" id="final-score">—</div>
+        <p id="final-msg"></p>
+        <button class="reset-btn" id="reset-btn">Try Again</button>
+      </div>
     </div>
   </main>
+
+  <!-- Whiteboard -->
+  <div id="wb-panel">
+    <div id="wb-header">
+      <span style="font-weight:600;font-size:13px;color:#e8eaf0;">Whiteboard</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="color" id="wb-color" value="#f9a825" style="width:28px;height:28px;border:none;background:none;cursor:pointer;padding:0;border-radius:4px;" />
+        <select id="wb-size" style="background:#222536;border:1px solid #2e3248;color:#e8eaf0;border-radius:5px;padding:3px 6px;font-size:12px;font-family:inherit;cursor:pointer;">
+          <option value="2">Thin</option>
+          <option value="4" selected>Medium</option>
+          <option value="8">Thick</option>
+          <option value="16">Marker</option>
+        </select>
+        <button id="wb-eraser" style="background:#222536;border:1px solid #2e3248;color:#e8eaf0;border-radius:5px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;">Eraser</button>
+        <button id="wb-clear" style="background:#222536;border:1px solid #2e3248;color:#f87171;border-radius:5px;padding:4px 10px;font-size:12px;font-family:inherit;cursor:pointer;">Clear</button>
+        <button id="wb-close" style="background:none;border:none;color:#6b7280;font-size:20px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+      </div>
+    </div>
+    <canvas id="wb-canvas"></canvas>
+  </div>
+
+  <style>
+    #wb-panel { position:fixed;bottom:24px;right:24px;width:520px;height:380px;background:#1a1d27;border:1px solid #2e3248;border-radius:14px;box-shadow:0 8px 40px rgba(0,0,0,0.6);display:none;flex-direction:column;z-index:500;overflow:hidden;resize:both; }
+    #wb-panel.open { display:flex; }
+    #wb-header { display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid #2e3248;background:#222536;flex-shrink:0;cursor:move;user-select:none; }
+    #wb-canvas { flex:1;width:100%;display:block;cursor:crosshair;background:#0f1117; }
+  </style>
+
   <script>
     const id = new URLSearchParams(window.location.search).get('id');
     if (!id) window.location.href = 'index.html';
 
     function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     function escAttr(s) { return String(s).replace(/"/g,'&quot;'); }
-    function renderMath(f) { try { return katex.renderToString(f,{throwOnError:false,displayMode:true}); } catch { return '<span style="color:#e05252">Invalid</span>'; } }
+
+    function renderMathStr(formula) {
+      try { return katex.renderToString(formula, { throwOnError: false, displayMode: true }); }
+      catch { return formula; }
+    }
+
+    function rerender(el) {
+      if (window.renderMathInElement) {
+        renderMathInElement(el, { delimiters: [{left:'\\[',right:'\\]',display:true},{left:'\\(',right:'\\)',display:false}] });
+      }
+    }
+
+    let questions = []; // [{idx, answer, solution}]
+    let answered = new Set();
+    let correct = new Set();
+
+    function updateProgress() {
+      const total = questions.length;
+      const pct = total ? (answered.size / total) * 100 : 0;
+      document.getElementById('progress-fill').style.width = pct + '%';
+      document.getElementById('nav-score').textContent = correct.size + ' / ' + answered.size + ' correct';
+      if (total > 0 && answered.size === total) showSummary();
+    }
+
+    function checkAnswer(qIdx) {
+      const input = document.getElementById(`q-input-${qIdx}`);
+      const fb = document.getElementById(`q-fb-${qIdx}`);
+      if (!input || input.disabled) return;
+      const val = input.value.trim().toLowerCase().replace(/\s+/g,'');
+      const expected = (questions[qIdx].answer || '').trim().toLowerCase().replace(/\s+/g,'');
+      const ok = val === expected;
+      input.disabled = true;
+      input.style.borderColor = ok ? '#4caf50' : '#e05252';
+      fb.innerHTML = ok
+        ? '<span style="color:#4caf50">✓ Correct!</span>'
+        : `<span style="color:#e05252">✗ Not quite.</span>`;
+      fb.style.display = 'block';
+      document.getElementById(`q-check-${qIdx}`).disabled = true;
+      answered.add(qIdx);
+      if (ok) correct.add(qIdx);
+      updateProgress();
+    }
+
+    function toggleSolution(qIdx) {
+      const sol = document.getElementById(`q-sol-${qIdx}`);
+      const btn = document.getElementById(`q-reveal-${qIdx}`);
+      if (sol.style.display === 'none' || !sol.style.display) {
+        sol.style.display = 'block';
+        btn.textContent = 'Hide Solution';
+        rerender(sol);
+      } else {
+        sol.style.display = 'none';
+        btn.textContent = 'Show Solution';
+      }
+    }
+
+    function showSummary() {
+      const total = questions.length;
+      const pct = Math.round((correct.size / total) * 100);
+      document.getElementById('final-score').textContent = correct.size + ' / ' + total;
+      document.getElementById('final-msg').textContent =
+        pct === 100 ? 'Perfect score — well done!' :
+        pct >= 70 ? 'Great work. Review the ones you missed.' :
+        "Keep practising — you'll get there.";
+      const s = document.getElementById('score-summary');
+      s.classList.add('show');
+      s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function resetAll() {
+      answered.clear(); correct.clear();
+      document.querySelectorAll('.q-input').forEach(el => { el.disabled=false; el.value=''; el.style.borderColor=''; });
+      document.querySelectorAll('.q-fb').forEach(el => { el.innerHTML=''; el.style.display='none'; });
+      document.querySelectorAll('.q-check').forEach(el => el.disabled=false);
+      document.querySelectorAll('.q-sol').forEach(el => el.style.display='none');
+      document.querySelectorAll('.q-reveal').forEach(el => el.textContent='Show Solution');
+      document.getElementById('score-summary').classList.remove('show');
+      document.getElementById('progress-fill').style.width = '0%';
+      document.getElementById('nav-score').textContent = '0 / 0 correct';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
     function renderBlocks(blocks) {
-      return (blocks||[]).map(b => {
-        let html = '';
-        if (b.type==='header') html=`<div class="render-header">${escHtml(b.text||'')}</div>`;
-        else if (b.type==='paragraph') html=`<div class="render-paragraph">${escHtml(b.text||'')}</div>`;
-        else if (b.type==='bullets') html=`<ul class="render-bullets">${(b.items||[]).map(i=>`<li>${escHtml(i)}</li>`).join('')}</ul>`;
-        else if (b.type==='image'&&b.url) html=`<img src="${escAttr(b.url)}" alt="${escAttr(b.alt||'')}" class="render-image"/>`;
-        else if (b.type==='file'&&b.url) html=`<a href="${escAttr(b.url)}" target="_blank" class="render-file">📎 ${escHtml(b.name||'Download')}</a>`;
-        else if (b.type==='math'&&b.formula) html=`<div class="render-math">${renderMath(b.formula)}</div>`;
-        else if (b.type==='divider') html=`<hr class="render-divider"/>`;
-        return `<div class="block">${html}</div>`;
+      let qNum = 0;
+      return blocks.map((b, idx) => {
+        if (b.type === 'header') return `<div style="font-size:22px;font-weight:700;margin:24px 0 8px">${escHtml(b.text||'')}</div>`;
+        if (b.type === 'paragraph') return `<p style="font-size:15px;color:#9ca3af;line-height:1.8;white-space:pre-wrap;margin-bottom:16px">${escHtml(b.text||'')}</p>`;
+        if (b.type === 'bullets') return `<ul style="padding-left:24px;margin-bottom:16px">${(b.items||[]).map(i=>`<li style="font-size:15px;color:#9ca3af;line-height:1.9">${escHtml(i)}</li>`).join('')}</ul>`;
+        if (b.type === 'image' && b.url) return `<img src="${escAttr(b.url)}" alt="${escAttr(b.alt||'')}" style="max-width:100%;border-radius:10px;margin:8px 0" />`;
+        if (b.type === 'file' && b.url) return `<a href="${escAttr(b.url)}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#1a1d27;border:1px solid #2e3248;border-radius:8px;padding:10px 16px;text-decoration:none;color:#e8eaf0;font-size:14px;margin:8px 0">📎 ${escHtml(b.name||'Download')}</a>`;
+        if (b.type === 'math' && b.formula) return `<div style="overflow-x:auto;padding:8px 0;margin-bottom:16px">${renderMathStr(b.formula)}</div>`;
+        if (b.type === 'divider') return `<hr style="border:none;border-top:1px solid #2e3248;margin:16px 0" />`;
+        if (b.type === 'question') {
+          const qIdx = qNum++;
+          questions.push({ idx: qIdx, answer: b.answer || '', solution: b.solution || '' });
+          return `
+            <div class="q-card" id="qcard-${qIdx}">
+              <div class="q-header">
+                <span class="q-num">Q${qIdx + 1}</span>
+                <div class="q-text">
+                  <p>${escHtml(b.question||'')}</p>
+                  ${b.hint ? `<p class="hint">${escHtml(b.hint)}</p>` : ''}
+                </div>
+              </div>
+              <div class="answer-area">
+                <div class="answer-row">
+                  <input class="answer-input q-input" id="q-input-${qIdx}" type="text" placeholder="Your answer" />
+                  <button class="check-btn q-check" id="q-check-${qIdx}" onclick="checkAnswer(${qIdx})">Check</button>
+                </div>
+                <div class="feedback q-fb" id="q-fb-${qIdx}" style="display:none"></div>
+                ${b.solution ? `
+                <div class="answer-row mt10">
+                  <button class="reveal-btn q-reveal" id="q-reveal-${qIdx}" onclick="toggleSolution(${qIdx})">Show Solution</button>
+                </div>
+                <div class="feedback q-sol" id="q-sol-${qIdx}" style="display:none">
+                  <div class="solution">${escHtml(b.solution)}</div>
+                </div>` : ''}
+              </div>
+            </div>`;
+        }
+        return '';
       }).join('');
     }
 
-    let isDone = false;
+    document.getElementById('submit-btn').addEventListener('click', showSummary);
+    document.getElementById('reset-btn').addEventListener('click', resetAll);
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.target.classList.contains('q-input')) {
+        const qIdx = parseInt(e.target.id.replace('q-input-',''));
+        checkAnswer(qIdx);
+      }
+    });
 
     (async () => {
       const [assignments, doneMap] = await Promise.all([
@@ -86,37 +226,63 @@
       ]);
       const hw = Array.isArray(assignments) ? assignments.find(a => a.sk === id) : null;
       document.getElementById('loading').style.display = 'none';
-      if (!hw) { document.getElementById('hw-view').innerHTML = '<p style="color:var(--muted)">Assignment not found.</p>'; document.getElementById('hw-view').style.display=''; return; }
+      if (!hw) { document.getElementById('hw-view').innerHTML = '<p style="color:#6b7280">Assignment not found.</p>'; document.getElementById('hw-view').style.display=''; return; }
 
-      isDone = !!(doneMap||{})[id];
-      const overdue = hw.dueDate && !isDone && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+      const overdue = hw.dueDate && !(doneMap||{})[id] && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
       const dueText = hw.dueDate
         ? `Due ${new Date(hw.dueDate+'T00:00:00').toLocaleDateString('en-CA',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}`
-        : 'No due date';
+        : '';
 
       document.getElementById('nav-title').textContent = hw.title;
-      document.getElementById('view-subject').textContent = hw.subject || 'General';
       document.getElementById('view-title').textContent = hw.title;
-      const meta = document.getElementById('view-meta');
-      meta.textContent = (overdue ? '⚠ Overdue · ' : '') + dueText;
-      if (overdue) meta.classList.add('overdue');
-
-      const doneBtn = document.getElementById('done-btn');
-      function updateDoneBtn() {
-        doneBtn.textContent = isDone ? '✓ Done' : '☐ Mark as done';
-        doneBtn.className = 'done-btn' + (isDone ? ' done' : '');
+      document.getElementById('view-subject').textContent = hw.subject || '';
+      if (dueText) {
+        const meta = document.getElementById('view-meta');
+        meta.textContent = (overdue ? '⚠ Overdue · ' : '') + dueText;
+        if (overdue) meta.style.color = '#f87171';
       }
-      updateDoneBtn();
-      doneBtn.addEventListener('click', async () => {
-        isDone = !isDone;
-        updateDoneBtn();
-        await AUTH.api('POST', `/assignments/${id}/done`, { done: isDone });
-      });
 
       let blocks = [];
       try { blocks = JSON.parse(hw.content); } catch {}
       document.getElementById('view-blocks').innerHTML = renderBlocks(blocks);
       document.getElementById('hw-view').style.display = '';
+
+      // Render math in question text
+      rerender(document.getElementById('view-blocks'));
+
+      // Hide progress bar if no questions
+      if (!questions.length) {
+        document.querySelector('.progress-bar-wrap').style.display = 'none';
+        document.getElementById('nav-score').style.display = 'none';
+        document.getElementById('submit-btn').style.display = 'none';
+      }
+    })();
+
+    // ---- Whiteboard ----
+    (function() {
+      var panel=document.getElementById('wb-panel'),canvas=document.getElementById('wb-canvas'),ctx=canvas.getContext('2d');
+      var toggle=document.getElementById('wb-toggle'),wbClose=document.getElementById('wb-close');
+      var wbClear=document.getElementById('wb-clear'),wbEraser=document.getElementById('wb-eraser');
+      var wbColor=document.getElementById('wb-color'),wbSize=document.getElementById('wb-size');
+      var drawing=false,erasing=false,lastX=0,lastY=0;
+      function initCanvas(){canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;}
+      toggle.addEventListener('click',function(){panel.classList.toggle('open');if(panel.classList.contains('open'))setTimeout(initCanvas,10);});
+      wbClose.addEventListener('click',function(){panel.classList.remove('open');});
+      wbClear.addEventListener('click',function(){ctx.clearRect(0,0,canvas.width,canvas.height);});
+      wbEraser.addEventListener('click',function(){erasing=!erasing;wbEraser.style.background=erasing?'#4d9fff':'#222536';wbEraser.style.color=erasing?'#fff':'#e8eaf0';});
+      function getPos(e){var r=canvas.getBoundingClientRect();if(e.touches)return{x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top};return{x:e.clientX-r.left,y:e.clientY-r.top};}
+      canvas.addEventListener('mousedown',function(e){drawing=true;var p=getPos(e);lastX=p.x;lastY=p.y;});
+      canvas.addEventListener('mousemove',function(e){if(!drawing)return;var p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.strokeStyle=erasing?'#0f1117':wbColor.value;ctx.lineWidth=erasing?parseInt(wbSize.value)*4:parseInt(wbSize.value);ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();lastX=p.x;lastY=p.y;});
+      canvas.addEventListener('mouseup',function(){drawing=false;});
+      canvas.addEventListener('mouseleave',function(){drawing=false;});
+      canvas.addEventListener('touchstart',function(e){e.preventDefault();drawing=true;var p=getPos(e);lastX=p.x;lastY=p.y;},{passive:false});
+      canvas.addEventListener('touchmove',function(e){e.preventDefault();if(!drawing)return;var p=getPos(e);ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(p.x,p.y);ctx.strokeStyle=erasing?'#0f1117':wbColor.value;ctx.lineWidth=erasing?parseInt(wbSize.value)*4:parseInt(wbSize.value);ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();lastX=p.x;lastY=p.y;},{passive:false});
+      canvas.addEventListener('touchend',function(){drawing=false;});
+      var wbHeader=document.getElementById('wb-header'),dragging=false,ox=0,oy=0;
+      wbHeader.addEventListener('mousedown',function(e){if(['BUTTON','INPUT','SELECT'].indexOf(e.target.tagName)!==-1)return;dragging=true;ox=e.clientX-panel.getBoundingClientRect().left;oy=e.clientY-panel.getBoundingClientRect().top;});
+      document.addEventListener('mousemove',function(e){if(!dragging)return;panel.style.right='auto';panel.style.bottom='auto';panel.style.left=(e.clientX-ox)+'px';panel.style.top=(e.clientY-oy)+'px';});
+      document.addEventListener('mouseup',function(){dragging=false;});
+      if(window.ResizeObserver)new ResizeObserver(initCanvas).observe(panel);
     })();
   </script>
 </body>
