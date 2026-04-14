@@ -11,14 +11,18 @@ let editingId = null;
 async function loadCourses() {
   const res = await AUTH.api('GET', '/admin/classes');
   allCourses = Array.isArray(res) ? res : [];
+
   const filter = document.getElementById('course-filter');
   const courseSelect = document.getElementById('h-course');
+
   if (allCourses.length) {
+    document.getElementById('filter-bar').style.display = '';
     filter.innerHTML = '<option value="all">All Courses</option>' +
       allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
-    document.getElementById('filter-bar').style.display = '';
-    courseSelect.innerHTML = '<option value="">No course</option>' +
-      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    if (courseSelect) {
+      courseSelect.innerHTML = '<option value="">No course</option>' +
+        allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    }
   }
 }
 
@@ -326,6 +330,24 @@ function escAttr(str) {
 
 // ---- INIT ----
 (async () => {
-  if (isTeacher) await loadCourses();
+  // Load courses for everyone so filter shows course names
+  const res = await AUTH.api('GET', '/admin/classes');
+  allCourses = Array.isArray(res) ? res : [];
+
+  const filter = document.getElementById('course-filter');
+  if (allCourses.length) {
+    document.getElementById('filter-bar').style.display = '';
+    filter.innerHTML = '<option value="all">All Courses</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+  }
+
+  if (isTeacher) {
+    const courseSelect = document.getElementById('h-course');
+    if (courseSelect) {
+      courseSelect.innerHTML = '<option value="">No course</option>' +
+        allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    }
+  }
+
   loadHandouts();
 })();

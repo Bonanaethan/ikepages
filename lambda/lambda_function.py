@@ -253,10 +253,32 @@ def lambda_handler(event, context):
 
     # GET /handouts
     if method == 'GET' and path == '/prod/handouts':
-        result = table.query(
-            KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('HANDOUT')
-        )
-        return resp(200, result['Items'])
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            role = get_role(event)
+            result = table.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('HANDOUT')
+            )
+            all_handouts = result.get('Items', [])
+
+            if role in ('teacher', 'admin'):
+                return resp(200, all_handouts)
+
+            # For students: find their enrolled courses
+            courses_result = table.query(
+                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS')
+            )
+            enrolled_course_ids = [
+                c['sk'] for c in courses_result.get('Items', [])
+                if username in (c.get('members') or [])
+            ]
+
+            # Return handouts with no course (visible to all) or matching enrolled courses
+            visible = [h for h in all_handouts if not h.get('courseId') or h.get('courseId') in enrolled_course_ids]
+            return resp(200, visible)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
 
     # PUT /handouts/{id} — update handout (teacher/admin only)
     if method == 'PUT' and path.startswith('/prod/handouts/'):
