@@ -49,6 +49,28 @@
         <p id="final-msg"></p>
         <button class="reset-btn" id="reset-btn">Try Again</button>
       </div>
+
+      <!-- Answer Submission -->
+      <div id="submission-section" style="background:#1a1d27;border:1px solid #2e3248;border-radius:12px;padding:24px;margin-top:32px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#6b7280;font-weight:600;margin-bottom:16px">Submit Your Answer</div>
+        <div id="existing-submission" style="display:none;margin-bottom:16px;padding:12px 16px;background:#222536;border-radius:8px;font-size:13px;color:#9ca3af"></div>
+        <textarea id="submission-note" placeholder="Add a note (optional)" rows="3" style="width:100%;background:#222536;border:1px solid #2e3248;border-radius:8px;padding:10px 14px;color:#e8eaf0;font-size:14px;font-family:inherit;outline:none;resize:vertical;margin-bottom:12px"></textarea>
+        <div id="submission-files" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <label style="display:inline-flex;align-items:center;gap:8px;background:#222536;border:1px solid #2e3248;border-radius:8px;padding:9px 16px;cursor:pointer;font-size:13px;color:#e8eaf0;transition:border-color 0.2s" id="upload-label">
+            📎 Attach files
+            <input type="file" id="submission-file-input" multiple accept="image/*,.pdf,.doc,.docx" style="display:none" />
+          </label>
+          <button id="submission-save" style="background:#f9a825;border:none;border-radius:8px;padding:10px 22px;color:#1a1a1a;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;transition:background 0.2s">Submit</button>
+        </div>
+        <p id="submission-msg" style="font-size:13px;color:#6b7280;margin-top:10px;min-height:18px"></p>
+      </div>
+
+      <!-- Teacher: view submissions -->
+      <div id="submissions-view" style="display:none;background:#1a1d27;border:1px solid #2e3248;border-radius:12px;padding:24px;margin-top:32px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#6b7280;font-weight:600;margin-bottom:16px">Student Submissions</div>
+        <div id="submissions-list"></div>
+      </div>
     </div>
   </main>
 
@@ -219,6 +241,71 @@
       }
     });
 
+    const isTeacher = AUTH.isTeacher() || AUTH.isAdmin();
+    let pendingFiles = [];
+
+    function renderPendingFiles() {
+      const container = document.getElementById('submission-files');
+      container.innerHTML = pendingFiles.map((f, i) =>
+        `<span style="background:#222536;border:1px solid #2e3248;border-radius:6px;padding:4px 10px;font-size:12px;color:#e8eaf0;display:inline-flex;align-items:center;gap:6px">
+          📎 ${f.name}
+          <button onclick="removePendingFile(${i})" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>
+        </span>`
+      ).join('');
+    }
+
+    window.removePendingFile = (i) => { pendingFiles.splice(i, 1); renderPendingFiles(); };
+
+    document.getElementById('submission-file-input').addEventListener('change', e => {
+      pendingFiles = [...pendingFiles, ...Array.from(e.target.files)];
+      renderPendingFiles();
+      e.target.value = '';
+    });
+
+    document.getElementById('submission-save').addEventListener('click', async () => {
+      const msg = document.getElementById('submission-msg');
+      msg.textContent = 'Uploading...'; msg.style.color = '#6b7280';
+      const uploadedFiles = [];
+      for (const file of pendingFiles) {
+        const res = await AUTH.api('POST', '/upload-url', { filename: file.name, contentType: file.type });
+        if (res.error) { msg.textContent = 'Upload failed: ' + res.error; msg.style.color = '#e05252'; return; }
+        await fetch(res.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+        uploadedFiles.push({ name: file.name, url: res.publicUrl });
+      }
+      const note = document.getElementById('submission-note').value.trim();
+      const res = await AUTH.api('POST', '/submissions', { assignmentId: id, files: uploadedFiles, note });
+      if (res.error) { msg.textContent = res.error; msg.style.color = '#e05252'; return; }
+      msg.textContent = 'Submitted successfully.'; msg.style.color = '#4caf50';
+      pendingFiles = [];
+      renderPendingFiles();
+      loadExistingSubmission();
+    });
+
+    async function loadExistingSubmission() {
+      const res = await AUTH.api('GET', `/submissions/${id}`);
+      const el = document.getElementById('existing-submission');
+      if (res.submittedAt) {
+        const files = res.files || [];
+        el.style.display = 'block';
+        el.innerHTML = `<div style="margin-bottom:6px;color:#e8eaf0;font-weight:500">Previously submitted — ${new Date(res.submittedAt).toLocaleDateString('en-CA', {month:'short',day:'numeric',year:'numeric'})}</div>
+          ${res.note ? `<div style="margin-bottom:8px">${res.note}</div>` : ''}
+          ${files.map(f => `<a href="${f.url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1d27;border:1px solid #2e3248;border-radius:6px;padding:5px 12px;text-decoration:none;color:#f9a825;font-size:12px;margin-right:6px">📎 ${f.name}</a>`).join('')}`;
+      }
+    }
+
+    async function loadSubmissions() {
+      const res = await AUTH.api('GET', `/submissions/${id}`);
+      const list = document.getElementById('submissions-list');
+      if (!Array.isArray(res) || !res.length) { list.innerHTML = '<p style="color:#6b7280;font-size:13px">No submissions yet.</p>'; return; }
+      list.innerHTML = res.map(s => `
+        <div style="background:#222536;border:1px solid #2e3248;border-radius:8px;padding:14px 16px;margin-bottom:10px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${s.sk}</div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:8px">${new Date(s.submittedAt).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+          ${s.note ? `<div style="font-size:13px;color:#9ca3af;margin-bottom:8px">${s.note}</div>` : ''}
+          ${(s.files||[]).map(f => `<a href="${f.url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1d27;border:1px solid #2e3248;border-radius:6px;padding:5px 12px;text-decoration:none;color:#f9a825;font-size:12px;margin-right:6px">📎 ${f.name}</a>`).join('')}
+        </div>`).join('');
+    }
+
     (async () => {
       const [assignments, doneMap] = await Promise.all([
         AUTH.api('GET', '/assignments'),
@@ -255,6 +342,14 @@
         document.querySelector('.progress-bar-wrap').style.display = 'none';
         document.getElementById('nav-score').style.display = 'none';
         document.getElementById('submit-btn').style.display = 'none';
+      }
+
+      if (isTeacher) {
+        document.getElementById('submission-section').style.display = 'none';
+        document.getElementById('submissions-view').style.display = '';
+        loadSubmissions();
+      } else {
+        loadExistingSubmission();
       }
     })();
 

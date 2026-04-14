@@ -24,12 +24,16 @@ def get_role(event):
     try:
         claims = event['requestContext']['authorizer']['jwt']['claims']
         groups = claims.get('cognito:groups', '')
-        if 'admins' in groups:
+        if isinstance(groups, list):
+            groups_list = groups
+        else:
+            groups_list = groups.replace('[','').replace(']','').replace('"','').split(',') if groups else []
+        groups_list = [g.strip() for g in groups_list]
+        if 'admins' in groups_list:
             return 'admin'
-        if 'teachers' in groups:
+        if 'teachers' in groups_list:
             return 'teacher'
-            return 'teacher'
-        if 'students' in groups:
+        if 'students' in groups_list:
             return 'student'
         return None
     except:
@@ -186,6 +190,45 @@ def lambda_handler(event, context):
             )
             done_map = {item['sk']: item.get('done', False) for item in result.get('Items', [])}
             return resp(200, done_map)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # POST /submissions — student submits answer
+    if method == 'POST' and path == '/prod/submissions':
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            body = json.loads(event.get('body') or '{}')
+            assignment_id = body.get('assignmentId')
+            if not assignment_id:
+                return resp(400, {'error': 'Missing assignmentId'})
+            item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
+            table.put_item(Item={
+                'pk': f'SUBMISSION#{assignment_id}',
+                'sk': username,
+                'files': body.get('files', []),
+                'note': body.get('note', ''),
+                'submittedAt': datetime.now(timezone.utc).isoformat()
+            })
+            return resp(200, {'message': 'Submitted'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # GET /submissions/{assignmentId} — get submissions (teacher/admin sees all, student sees own)
+    if method == 'GET' and path.startswith('/prod/submissions/'):
+        try:
+            claims = event['requestContext']['authorizer']['jwt']['claims']
+            username = claims.get('cognito:username')
+            assignment_id = path.split('/')[-1]
+            role = get_role(event)
+            if role in ('teacher', 'admin'):
+                result = table.query(
+                    KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'SUBMISSION#{assignment_id}')
+                )
+                return resp(200, result.get('Items', []))
+            else:
+                result = table.get_item(Key={'pk': f'SUBMISSION#{assignment_id}', 'sk': username})
+                return resp(200, result.get('Item', {}))
         except Exception as e:
             return resp(500, {'error': str(e)})
 
