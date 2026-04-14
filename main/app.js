@@ -167,12 +167,6 @@ function applySettings(s) {
   document.body.dataset.bg = s.bgStyle;
   document.querySelector('.clock-widget').style.display = s.showClock ? '' : 'none';
   document.querySelector('.weather-widget').style.display = s.showWeather ? '' : 'none';
-  // Always use Cognito username, ignore saved displayName
-  const cognitoUsername = AUTH.getUser()?.['cognito:username'] || AUTH.getUser()?.email || '';
-  if (cognitoUsername) {
-    updateGreeting(cognitoUsername);
-    document.getElementById('nav-username').textContent = cognitoUsername;
-  }
 }
 
 function initCustomizer() {
@@ -240,8 +234,12 @@ if (AUTH.isTeacher() || AUTH.isAdmin()) {
   if (link) link.style.display = '';
 }
 
-// Load profile for students — redirect to setup if missing, else show first name
+// Set nav username with group label and greeting with first name
 (async () => {
+  const role = AUTH.getRole();
+  const cognitoUsername = AUTH.getUser()?.['cognito:username'] || '';
+  const groupLabel = role ? ` (${role})` : '';
+
   if (!AUTH.isTeacher() && !AUTH.isAdmin()) {
     const profile = await AUTH.api('GET', '/profile');
     if (!profile.firstName) {
@@ -249,6 +247,9 @@ if (AUTH.isTeacher() || AUTH.isAdmin()) {
       return;
     }
     updateGreeting(profile.firstName);
-    document.getElementById('nav-username').textContent = profile.firstName + ' ' + profile.lastName;
+    document.getElementById('nav-username').textContent = cognitoUsername + groupLabel;
+  } else {
+    updateGreeting(cognitoUsername);
+    document.getElementById('nav-username').textContent = cognitoUsername + groupLabel;
   }
 })();
