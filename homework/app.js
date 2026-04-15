@@ -35,12 +35,19 @@ async function init() {
   allCourses = Array.isArray(coursesRes) ? coursesRes : [];
 
   if (allCourses.length) {
-    const filterBar = document.getElementById('course-filter-bar');
-    const filterSel = document.getElementById('hw-course-filter');
-    filterBar.style.display = '';
-    filterSel.innerHTML = '<option value="all">All Courses</option>' +
-      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
-    filterSel.addEventListener('change', render);
+    // For students, only show classes they're enrolled in
+    let visibleCourses = allCourses;
+    if (!isTeacher) {
+      visibleCourses = allCourses.filter(c => (c.members || []).includes(username));
+    }
+    if (visibleCourses.length) {
+      const filterBar = document.getElementById('course-filter-bar');
+      const filterSel = document.getElementById('hw-course-filter');
+      filterBar.style.display = '';
+      filterSel.innerHTML = '<option value="all">All Courses</option>' +
+        visibleCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+      filterSel.addEventListener('change', render);
+    }
   }
 
   // Populate editor course dropdown for teachers
@@ -83,6 +90,7 @@ function render() {
   filtered.sort((a, b) => {
     if (a.builtin && !b.builtin) return -1;
     if (!a.builtin && b.builtin) return 1;
+    if (!isTeacher) return a.title.localeCompare(b.title);
     const da = !!doneMap[a.sk], db = !!doneMap[b.sk];
     if (da !== db) return da ? 1 : -1;
     if (!a.dueDate && !b.dueDate) return 0;

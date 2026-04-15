@@ -235,12 +235,23 @@ def lambda_handler(event, context):
             assignment_id = body.get('assignmentId')
             if not assignment_id:
                 return resp(400, {'error': 'Missing assignmentId'})
+            existing = table.get_item(Key={'pk': f'SUBMISSION#{assignment_id}', 'sk': username}).get('Item', {})
+            # Block modification if already submitted (unless cancelling)
+            if existing.get('submitted') and not body.get('cancel'):
+                return resp(403, {'error': 'Already submitted'})
+            submitted = body.get('submitted', False)
+            if body.get('cancel'):
+                submitted = False
             table.put_item(Item={
                 'pk': f'SUBMISSION#{assignment_id}', 'sk': username,
-                'files': body.get('files', []), 'note': body.get('note', ''),
-                'submittedAt': datetime.now(timezone.utc).isoformat()
+                'files': body.get('files', existing.get('files', [])),
+                'note': body.get('note', existing.get('note', '')),
+                'answers': body.get('answers', existing.get('answers', {})),
+                'submitted': submitted,
+                'submittedAt': datetime.now(timezone.utc).isoformat() if submitted else '',
+                'savedAt': datetime.now(timezone.utc).isoformat()
             })
-            return resp(200, {'message': 'Submitted'})
+            return resp(200, {'message': 'Cancelled' if body.get('cancel') else ('Submitted' if submitted else 'Saved')})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
