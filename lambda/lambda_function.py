@@ -14,11 +14,11 @@ HEADERS = {
     'Content-Type': 'application/json',
     'Access-Control-Allow-Origin': 'https://hw.ikids.education',
     'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS'
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS'
 }
 
 def resp(status, body):
-    return {'statusCode': status, 'headers': HEADERS, 'body': json.dumps(body)}
+    return {'statusCode': status, 'headers': HEADERS, 'body': json.dumps(body, default=str)}
 
 def get_role(event):
     try:
@@ -29,13 +29,16 @@ def get_role(event):
         else:
             groups_list = groups.replace('[','').replace(']','').replace('"','').split(',') if groups else []
         groups_list = [g.strip() for g in groups_list]
-        if 'admins' in groups_list:
-            return 'admin'
-        if 'teachers' in groups_list:
-            return 'teacher'
-        if 'students' in groups_list:
-            return 'student'
+        if 'admins' in groups_list: return 'admin'
+        if 'teachers' in groups_list: return 'teacher'
+        if 'students' in groups_list: return 'student'
         return None
+    except:
+        return None
+
+def get_username(event):
+    try:
+        return event['requestContext']['authorizer']['jwt']['claims'].get('cognito:username')
     except:
         return None
 
@@ -47,57 +50,115 @@ def lambda_handler(event, context):
     if method == 'OPTIONS':
         return resp(200, {})
 
-    # POST /users — create student (teacher only)
+    # ==================== USERS ====================
+
+    # POST /users — create user (teacher/admin)
     if method == 'POST' and path == '/prod/users':
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         body = json.loads(event.get('body') or '{}')
         username, password, email = body.get('username'), body.get('password'), body.get('email')
+        group = body.get('group', 'students')
         if not all([username, password, email]):
             return resp(400, {'error': 'Missing fields'})
         try:
             cognito.admin_create_user(
-                UserPoolId=USER_POOL_ID,
-                Username=username,
-                TemporaryPassword=password,
-                MessageAction='SUPPRESS',
+                UserPoolId=USER_POOL_ID, Username=username,
+                TemporaryPassword=password, MessageAction='SUPPRESS',
                 UserAttributes=[
                     {'Name': 'email', 'Value': email},
-                    {'Name': 'email_verified', 'Value': 'true'},
-                    {'Name': 'custom:role', 'Value': 'student'}
+                    {'Name': 'email_verified', 'Value': 'true'}
                 ]
             )
-            cognito.admin_set_user_password(
-                UserPoolId=USER_POOL_ID,
-                Username=username,
-                Password=password,
-                Permanent=True
-            )
-            cognito.admin_add_user_to_group(
-                UserPoolId=USER_POOL_ID,
-                Username=username,
-                GroupName='students'
-            )
-            return resp(200, {'message': 'Student created'})
+            cognito.admin_set_user_password(UserPoolId=USER_POOL_ID, Username=username, Password=password, Permanent=True)
+            cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=username, GroupName=group)
+            return resp(200, {'message': 'User created'})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
     # GET /users — list students (teacher only)
     if method == 'GET' and path == '/prod/users':
-        if get_role(event) != 'teacher':
+        if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         try:
             result = cognito.list_users(UserPoolId=USER_POOL_ID)
-            students = []
+            users = []
             for u in result['Users']:
                 attrs = {a['Name']: a['Value'] for a in u['Attributes']}
-                if attrs.get('custom:role') == 'student':
-                    students.append({'username': u['Username'], 'email': attrs.get('email')})
-            return resp(200, students)
+                groups_res = cognito.admin_list_groups_for_user(UserPoolId=USER_POOL_ID, Username=u['Username'])
+                user_groups = [g['GroupName'] for g in groups_res['Groups']]
+                users.append({'username': u['Username'], 'email': attrs.get('email', ''), 'groups': user_groups})
+            return resp(200, users)
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /assignments — create assignment (teacher/admin only)
+    # PUT /admin/users/{username} — edit user group and profile (admin only)
+    if method == 'PUT' and path.startswith('/prod/admin/users/'):
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        target_username = path.split('/')[-1]
+        body = json.loads(event.get('body') or '{}')
+        try:
+            # Update group if provided
+            new_group = body.get('group')
+            if new_group:
+                groups_res = cognito.admin_list_groups_for_user(UserPoolId=USER_POOL_ID, Username=target_username)
+                for g in groups_res['Groups']:
+                    cognito.admin_remove_user_from_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=g['GroupName'])
+                cognito.admin_add_user_to_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=new_group)
+            # Update profile in DynamoDB if provided
+            if body.get('firstName') or body.get('lastName') or body.get('dob'):
+                existing = table.get_item(Key={'pk': 'PROFILE', 'sk': target_username}).get('Item', {})
+                table.put_item(Item={
+                    'pk': 'PROFILE', 'sk': target_username,
+                    'firstName': body.get('firstName', existing.get('firstName', '')),
+                    'lastName': body.get('lastName', existing.get('lastName', '')),
+                    'dob': body.get('dob', existing.get('dob', '')),
+                    'updatedAt': datetime.now(timezone.utc).isoformat()
+                })
+            return resp(200, {'message': 'User updated'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # DELETE /admin/users/{username} — delete user (admin only)
+    if method == 'DELETE' and path.startswith('/prod/admin/users/'):
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        target_username = path.split('/')[-1]
+        try:
+            cognito.admin_delete_user(UserPoolId=USER_POOL_ID, Username=target_username)
+            table.delete_item(Key={'pk': 'PROFILE', 'sk': target_username})
+            return resp(200, {'message': 'User deleted'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # GET /admin/users — list all users with profiles (admin only)
+    if method == 'GET' and path == '/prod/admin/users':
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        try:
+            result = cognito.list_users(UserPoolId=USER_POOL_ID)
+            users = []
+            for u in result['Users']:
+                attrs = {a['Name']: a['Value'] for a in u['Attributes']}
+                groups_res = cognito.admin_list_groups_for_user(UserPoolId=USER_POOL_ID, Username=u['Username'])
+                user_groups = [g['GroupName'] for g in groups_res['Groups']]
+                profile = table.get_item(Key={'pk': 'PROFILE', 'sk': u['Username']}).get('Item', {})
+                users.append({
+                    'username': u['Username'],
+                    'email': attrs.get('email', ''),
+                    'status': u['UserStatus'],
+                    'groups': user_groups,
+                    'firstName': profile.get('firstName', ''),
+                    'lastName': profile.get('lastName', ''),
+                    'dob': profile.get('dob', '')
+                })
+            return resp(200, users)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # ==================== ASSIGNMENTS ====================
+
     if method == 'POST' and path == '/prod/assignments':
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
@@ -107,124 +168,89 @@ def lambda_handler(event, context):
         item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
         table.put_item(Item={
             'pk': 'ASSIGNMENT', 'sk': item_id,
-            'title': body['title'],
-            'subject': body.get('subject', ''),
-            'content': body.get('content', ''),
-            'dueDate': body.get('dueDate', ''),
-            'courseId': body.get('courseId', ''),
-            'assignedTo': body.get('assignedTo', 'all'),
+            'title': body['title'], 'subject': body.get('subject', ''),
+            'content': body.get('content', ''), 'dueDate': body.get('dueDate', ''),
+            'courseId': body.get('courseId', ''), 'assignedTo': body.get('assignedTo', 'all'),
             'createdAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Assignment created', 'id': item_id})
 
-    # GET /assignments
     if method == 'GET' and path == '/prod/assignments':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
-            result = table.query(
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT')
-            )
+            username = get_username(event)
+            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
             items = result.get('Items', [])
             role = get_role(event)
             if role in ('teacher', 'admin'):
                 return resp(200, items)
-            # Students only see assignments for them or 'all'
             visible = [a for a in items if a.get('assignedTo') == 'all' or username in (a.get('assignedTo') or [])]
             return resp(200, visible)
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # PUT /assignments/{id} — update (teacher/admin only)
-    if method == 'PUT' and path.startswith('/prod/assignments/'):
+    if method == 'PUT' and path.startswith('/prod/assignments/') and not path.endswith('/done'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         body = json.loads(event.get('body') or '{}')
-        if not body.get('title'):
-            return resp(400, {'error': 'Missing title'})
         table.put_item(Item={
             'pk': 'ASSIGNMENT', 'sk': item_id,
-            'title': body['title'],
-            'subject': body.get('subject', ''),
-            'content': body.get('content', ''),
-            'dueDate': body.get('dueDate', ''),
-            'courseId': body.get('courseId', ''),
-            'assignedTo': body.get('assignedTo', 'all'),
+            'title': body.get('title', ''), 'subject': body.get('subject', ''),
+            'content': body.get('content', ''), 'dueDate': body.get('dueDate', ''),
+            'courseId': body.get('courseId', ''), 'assignedTo': body.get('assignedTo', 'all'),
             'updatedAt': datetime.now(timezone.utc).isoformat()
         })
-        return resp(200, {'message': 'Assignment updated'})
+        return resp(200, {'message': 'Updated'})
 
-    # DELETE /assignments/{id} (teacher/admin only)
     if method == 'DELETE' and path.startswith('/prod/assignments/'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
-        item_id = path.split('/')[-1]
-        table.delete_item(Key={'pk': 'ASSIGNMENT', 'sk': item_id})
+        table.delete_item(Key={'pk': 'ASSIGNMENT', 'sk': path.split('/')[-1]})
         return resp(200, {'message': 'Deleted'})
 
-    # POST /assignments/{id}/done — mark done for student
     if method == 'POST' and path.startswith('/prod/assignments/') and path.endswith('/done'):
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             item_id = path.split('/')[3]
             body = json.loads(event.get('body') or '{}')
-            done = body.get('done', True)
-            table.put_item(Item={
-                'pk': f'DONE#{username}', 'sk': item_id,
-                'done': done,
-                'updatedAt': datetime.now(timezone.utc).isoformat()
-            })
+            table.put_item(Item={'pk': f'DONE#{username}', 'sk': item_id, 'done': body.get('done', True), 'updatedAt': datetime.now(timezone.utc).isoformat()})
             return resp(200, {'message': 'Updated'})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # GET /assignments/done — get done state for current user
     if method == 'GET' and path == '/prod/assignments/done':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
-            result = table.query(
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'DONE#{username}')
-            )
-            done_map = {item['sk']: item.get('done', False) for item in result.get('Items', [])}
-            return resp(200, done_map)
+            username = get_username(event)
+            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'DONE#{username}'))
+            return resp(200, {item['sk']: item.get('done', False) for item in result.get('Items', [])})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /submissions — student submits answer
+    # ==================== SUBMISSIONS ====================
+
     if method == 'POST' and path == '/prod/submissions':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             body = json.loads(event.get('body') or '{}')
             assignment_id = body.get('assignmentId')
             if not assignment_id:
                 return resp(400, {'error': 'Missing assignmentId'})
-            item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
             table.put_item(Item={
-                'pk': f'SUBMISSION#{assignment_id}',
-                'sk': username,
-                'files': body.get('files', []),
-                'note': body.get('note', ''),
+                'pk': f'SUBMISSION#{assignment_id}', 'sk': username,
+                'files': body.get('files', []), 'note': body.get('note', ''),
                 'submittedAt': datetime.now(timezone.utc).isoformat()
             })
             return resp(200, {'message': 'Submitted'})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # GET /submissions/{assignmentId} — get submissions (teacher/admin sees all, student sees own)
     if method == 'GET' and path.startswith('/prod/submissions/'):
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             assignment_id = path.split('/')[-1]
             role = get_role(event)
             if role in ('teacher', 'admin'):
-                result = table.query(
-                    KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'SUBMISSION#{assignment_id}')
-                )
+                result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'SUBMISSION#{assignment_id}'))
                 return resp(200, result.get('Items', []))
             else:
                 result = table.get_item(Key={'pk': f'SUBMISSION#{assignment_id}', 'sk': username})
@@ -232,7 +258,8 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /handouts — create handout (teacher only)
+    # ==================== HANDOUTS ====================
+
     if method == 'POST' and path == '/prod/handouts':
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
@@ -242,106 +269,87 @@ def lambda_handler(event, context):
         item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
         table.put_item(Item={
             'pk': 'HANDOUT', 'sk': item_id,
-            'title': body['title'],
-            'url': body.get('url', ''),
-            'description': body.get('description', ''),
-            'content': body.get('content', ''),
-            'courseId': body.get('courseId', ''),
-            'createdAt': datetime.now(timezone.utc).isoformat()
+            'title': body['title'], 'url': body.get('url', ''),
+            'description': body.get('description', ''), 'content': body.get('content', ''),
+            'courseId': body.get('courseId', ''), 'createdAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Handout created', 'id': item_id})
 
-    # GET /handouts
     if method == 'GET' and path == '/prod/handouts':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             role = get_role(event)
-            result = table.query(
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('HANDOUT')
-            )
+            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('HANDOUT'))
             all_handouts = result.get('Items', [])
-
             if role in ('teacher', 'admin'):
                 return resp(200, all_handouts)
-
-            # For students: find their enrolled courses
-            courses_result = table.query(
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS')
-            )
-            enrolled_course_ids = [
-                c['sk'] for c in courses_result.get('Items', [])
-                if username in (c.get('members') or [])
-            ]
-
-            # Return handouts with no course (visible to all) or matching enrolled courses
-            visible = [h for h in all_handouts if not h.get('courseId') or h.get('courseId') in enrolled_course_ids]
+            courses_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            enrolled_ids = [c['sk'] for c in courses_result.get('Items', []) if username in (c.get('members') or [])]
+            visible = [h for h in all_handouts if not h.get('courseId') or h.get('courseId') in enrolled_ids]
             return resp(200, visible)
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # PUT /handouts/{id} — update handout (teacher/admin only)
     if method == 'PUT' and path.startswith('/prod/handouts/'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         body = json.loads(event.get('body') or '{}')
-        if not body.get('title'):
-            return resp(400, {'error': 'Missing title'})
         table.put_item(Item={
             'pk': 'HANDOUT', 'sk': item_id,
-            'title': body['title'],
-            'url': body.get('url', ''),
-            'description': body.get('description', ''),
-            'content': body.get('content', ''),
-            'courseId': body.get('courseId', ''),
-            'updatedAt': datetime.now(timezone.utc).isoformat()
+            'title': body.get('title', ''), 'url': body.get('url', ''),
+            'description': body.get('description', ''), 'content': body.get('content', ''),
+            'courseId': body.get('courseId', ''), 'updatedAt': datetime.now(timezone.utc).isoformat()
         })
-        return resp(200, {'message': 'Handout updated'})
+        return resp(200, {'message': 'Updated'})
 
-    # DELETE /handouts/{id} (teacher/admin only)
     if method == 'DELETE' and path.startswith('/prod/handouts/'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
-        item_id = path.split('/')[-1]
-        table.delete_item(Key={'pk': 'HANDOUT', 'sk': item_id})
-        return resp(200, {'message': 'Deleted'})
+        table.delete_item(Key={'pk': 'HANDOUT', 'sk': path.split('/')[-1]})
         return resp(200, {'message': 'Deleted'})
 
-    # POST /upload-url — get presigned S3 upload URL (teacher/admin only)
+    # ==================== UPLOAD ====================
+
     if method == 'POST' and path == '/prod/upload-url':
-        if get_role(event) not in ('teacher', 'admin'):
+        if get_role(event) not in ('teacher', 'admin', 'student'):
             return resp(403, {'error': 'Forbidden'})
         body = json.loads(event.get('body') or '{}')
         filename = body.get('filename', 'file')
         content_type = body.get('contentType', 'application/octet-stream')
         key = f"uploads/{uuid.uuid4()}-{filename}"
         try:
-            url = s3.generate_presigned_url('put_object',
-                Params={'Bucket': S3_BUCKET, 'Key': key, 'ContentType': content_type},
-                ExpiresIn=300
-            )
-            public_url = f"https://{S3_BUCKET}/{key}"
-            return resp(200, {'uploadUrl': url, 'publicUrl': public_url, 'key': key})
+            url = s3.generate_presigned_url('put_object', Params={'Bucket': S3_BUCKET, 'Key': key, 'ContentType': content_type}, ExpiresIn=300)
+            return resp(200, {'uploadUrl': url, 'publicUrl': f"https://{S3_BUCKET}/{key}", 'key': key})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # GET /announcements
+    # ==================== ANNOUNCEMENTS ====================
+
     if method == 'GET' and path == '/prod/announcements':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
-            result = table.query(
-                KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ANNOUNCEMENT')
-            )
+            username = get_username(event)
+            role = get_role(event)
+            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ANNOUNCEMENT'))
             items = result.get('Items', [])
-            # Filter to announcements assigned to this user or 'all'
-            visible = [a for a in items if a.get('assignedTo') == 'all' or username in (a.get('assignedTo') or [])]
+            if role in ('teacher', 'admin'):
+                return resp(200, items)
+            # Get student's classes
+            courses_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            student_class_ids = [c['sk'] for c in courses_result.get('Items', []) if username in (c.get('members') or [])]
+            visible = []
+            for a in items:
+                assigned = a.get('assignedTo', 'all')
+                if assigned == 'all':
+                    visible.append(a)
+                elif isinstance(assigned, list):
+                    # Check if username in list OR any of student's classes in list
+                    if username in assigned or any(cid in assigned for cid in student_class_ids):
+                        visible.append(a)
             return resp(200, visible)
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /announcements — create (teacher/admin only)
     if method == 'POST' and path == '/prod/announcements':
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
@@ -351,95 +359,85 @@ def lambda_handler(event, context):
         item_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
         table.put_item(Item={
             'pk': 'ANNOUNCEMENT', 'sk': item_id,
-            'title': body['title'],
-            'message': body.get('message', ''),
+            'title': body['title'], 'message': body.get('message', ''),
             'assignedTo': body.get('assignedTo', 'all'),
             'createdAt': datetime.now(timezone.utc).isoformat()
         })
-        return resp(200, {'message': 'Announcement created', 'id': item_id})
+        return resp(200, {'message': 'Created', 'id': item_id})
 
-    # DELETE /announcements/{id} (teacher/admin only)
-    if method == 'DELETE' and path.startswith('/prod/announcements/'):
+    if method == 'PUT' and path.startswith('/prod/announcements/'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
-        table.delete_item(Key={'pk': 'ANNOUNCEMENT', 'sk': item_id})
+        body = json.loads(event.get('body') or '{}')
+        table.put_item(Item={
+            'pk': 'ANNOUNCEMENT', 'sk': item_id,
+            'title': body.get('title', ''), 'message': body.get('message', ''),
+            'assignedTo': body.get('assignedTo', 'all'),
+            'updatedAt': datetime.now(timezone.utc).isoformat()
+        })
+        return resp(200, {'message': 'Updated'})
+
+    if method == 'DELETE' and path.startswith('/prod/announcements/'):
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        table.delete_item(Key={'pk': 'ANNOUNCEMENT', 'sk': path.split('/')[-1]})
         return resp(200, {'message': 'Deleted'})
 
-    # GET /profile — get current user's profile
+    # ==================== PROFILE ====================
+
     if method == 'GET' and path == '/prod/profile':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             result = table.get_item(Key={'pk': 'PROFILE', 'sk': username})
             return resp(200, result.get('Item', {}))
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # POST /profile — save current user's profile
     if method == 'POST' and path == '/prod/profile':
         try:
-            claims = event['requestContext']['authorizer']['jwt']['claims']
-            username = claims.get('cognito:username')
+            username = get_username(event)
             body = json.loads(event.get('body') or '{}')
             if not body.get('firstName') or not body.get('lastName') or not body.get('dob'):
                 return resp(400, {'error': 'Missing fields'})
             table.put_item(Item={
                 'pk': 'PROFILE', 'sk': username,
-                'firstName': body['firstName'],
-                'lastName': body['lastName'],
-                'dob': body['dob'],
-                'updatedAt': datetime.now(timezone.utc).isoformat()
+                'firstName': body['firstName'], 'lastName': body['lastName'],
+                'dob': body['dob'], 'updatedAt': datetime.now(timezone.utc).isoformat()
             })
             return resp(200, {'message': 'Profile saved'})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # GET /admin/users — list all users (admin only)
-    if method == 'GET' and path == '/prod/admin/users':
-        if get_role(event) not in ('admin',):
-            return resp(403, {'error': 'Forbidden'})
-        try:
-            result = cognito.list_users(UserPoolId=USER_POOL_ID)
-            users = []
-            for u in result['Users']:
-                attrs = {a['Name']: a['Value'] for a in u['Attributes']}
-                groups_res = cognito.admin_list_groups_for_user(UserPoolId=USER_POOL_ID, Username=u['Username'])
-                user_groups = [g['GroupName'] for g in groups_res['Groups']]
-                users.append({
-                    'username': u['Username'],
-                    'email': attrs.get('email', ''),
-                    'status': u['UserStatus'],
-                    'groups': user_groups
-                })
-            return resp(200, users)
-        except Exception as e:
-            return resp(500, {'error': str(e)})
+    # ==================== CLASSES ====================
 
-    # GET /admin/classes — list all classes (admin only)
     if method == 'GET' and path == '/prod/admin/classes':
-        if get_role(event) != 'admin':
+        if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
         result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
         return resp(200, result.get('Items', []))
 
-    # POST /admin/classes — create a class (admin only)
     if method == 'POST' and path == '/prod/admin/classes':
         if get_role(event) != 'admin':
             return resp(403, {'error': 'Forbidden'})
         body = json.loads(event.get('body') or '{}')
         if not body.get('name'):
-            return resp(400, {'error': 'Missing class name'})
+            return resp(400, {'error': 'Missing name'})
         class_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
         table.put_item(Item={
             'pk': 'CLASS', 'sk': class_id,
-            'name': body['name'],
-            'members': [],
-            'createdAt': datetime.now(timezone.utc).isoformat()
+            'name': body['name'], 'members': [],
+            'courseIds': [], 'createdAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Class created', 'id': class_id})
 
-    # POST /admin/classes/{id}/members — add user to class (admin only)
+    if method == 'DELETE' and path.startswith('/prod/admin/classes/') and not '/members/' in path and not path.endswith('/members'):
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        table.delete_item(Key={'pk': 'CLASS', 'sk': path.split('/')[-1]})
+        return resp(200, {'message': 'Deleted'})
+
+    # POST /admin/classes/{id}/members — add member
     if method == 'POST' and path.startswith('/prod/admin/classes/') and path.endswith('/members'):
         if get_role(event) != 'admin':
             return resp(403, {'error': 'Forbidden'})
@@ -455,19 +453,67 @@ def lambda_handler(event, context):
         members = item.get('members', [])
         if username not in members:
             members.append(username)
-        table.update_item(
-            Key={'pk': 'CLASS', 'sk': class_id},
-            UpdateExpression='SET members = :m',
-            ExpressionAttributeValues={':m': members}
-        )
+        table.update_item(Key={'pk': 'CLASS', 'sk': class_id}, UpdateExpression='SET members = :m', ExpressionAttributeValues={':m': members})
         return resp(200, {'message': 'Member added'})
 
-    # DELETE /admin/classes/{id} — delete class (admin only)
-    if method == 'DELETE' and path.startswith('/prod/admin/classes/'):
+    # DELETE /admin/classes/{id}/members/{username} — remove member
+    if method == 'DELETE' and path.startswith('/prod/admin/classes/') and '/members/' in path:
         if get_role(event) != 'admin':
             return resp(403, {'error': 'Forbidden'})
-        class_id = path.split('/')[-1]
-        table.delete_item(Key={'pk': 'CLASS', 'sk': class_id})
+        parts = path.split('/')
+        class_id = parts[4]
+        target_username = parts[6]
+        result = table.get_item(Key={'pk': 'CLASS', 'sk': class_id})
+        item = result.get('Item')
+        if not item:
+            return resp(404, {'error': 'Class not found'})
+        members = [m for m in item.get('members', []) if m != target_username]
+        table.update_item(Key={'pk': 'CLASS', 'sk': class_id}, UpdateExpression='SET members = :m', ExpressionAttributeValues={':m': members})
+        return resp(200, {'message': 'Member removed'})
+
+    # POST /admin/classes/{id}/courses — assign course to class
+    if method == 'POST' and path.startswith('/prod/admin/classes/') and path.endswith('/courses'):
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        class_id = path.split('/')[4]
+        body = json.loads(event.get('body') or '{}')
+        course_id = body.get('courseId')
+        if not course_id:
+            return resp(400, {'error': 'Missing courseId'})
+        result = table.get_item(Key={'pk': 'CLASS', 'sk': class_id})
+        item = result.get('Item', {})
+        course_ids = item.get('courseIds', [])
+        if course_id not in course_ids:
+            course_ids.append(course_id)
+        table.update_item(Key={'pk': 'CLASS', 'sk': class_id}, UpdateExpression='SET courseIds = :c', ExpressionAttributeValues={':c': course_ids})
+        return resp(200, {'message': 'Course assigned'})
+
+    # ==================== COURSES ====================
+
+    if method == 'GET' and path == '/prod/admin/courses':
+        if get_role(event) not in ('admin', 'teacher'):
+            return resp(403, {'error': 'Forbidden'})
+        result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
+        return resp(200, result.get('Items', []))
+
+    if method == 'POST' and path == '/prod/admin/courses':
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        body = json.loads(event.get('body') or '{}')
+        if not body.get('name'):
+            return resp(400, {'error': 'Missing name'})
+        course_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
+        table.put_item(Item={
+            'pk': 'COURSE', 'sk': course_id,
+            'name': body['name'], 'description': body.get('description', ''),
+            'createdAt': datetime.now(timezone.utc).isoformat()
+        })
+        return resp(200, {'message': 'Course created', 'id': course_id})
+
+    if method == 'DELETE' and path.startswith('/prod/admin/courses/'):
+        if get_role(event) != 'admin':
+            return resp(403, {'error': 'Forbidden'})
+        table.delete_item(Key={'pk': 'COURSE', 'sk': path.split('/')[-1]})
         return resp(200, {'message': 'Deleted'})
 
     return resp(404, {'error': 'Not found'})

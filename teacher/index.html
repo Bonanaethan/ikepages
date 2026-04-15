@@ -25,57 +25,137 @@
   </nav>
 
   <main class="content">
-    <!-- Tabs -->
     <div class="tabs">
       <button class="tab-btn active" data-tab="users">Users</button>
-      <button class="tab-btn" id="admin-tab-btn" data-tab="courses" style="display:none">Courses</button>
+      <button class="tab-btn" data-tab="courses" id="tab-btn-courses">Courses</button>
+      <button class="tab-btn" data-tab="classes" id="tab-btn-classes">Classes</button>
+      <button class="tab-btn" data-tab="announcements" id="tab-btn-announcements">Announcements</button>
     </div>
 
-    <!-- Users Tab -->
+    <!-- USERS TAB -->
     <div id="tab-users" class="tab-panel active">
       <div class="panel-header">
         <h2>Users</h2>
-        <button class="btn primary" id="add-student-btn">+ Add User</button>
-      </div>
-      <div style="margin-bottom:16px">
-        <select id="group-filter" style="background:#1a1d27;border:1px solid #2e3248;border-radius:8px;padding:9px 14px;color:#e8eaf0;font-size:13px;font-family:inherit;outline:none;cursor:pointer">
-          <option value="all">All Groups</option>
-          <option value="students">Students</option>
-          <option value="teachers">Teachers</option>
-          <option value="admins">Admins</option>
-        </select>
-      </div>
-      <div id="students-list" class="card-list"></div>
-
-      <div id="add-student-form" class="form-card hidden">
-        <h3>Create User Account</h3>
-        <input type="text" id="s-username" placeholder="Username" />
-        <input type="email" id="s-email" placeholder="Email" />
-        <input type="password" id="s-password" placeholder="Password" />
-        <div class="form-actions">
-          <button class="btn" id="s-cancel">Cancel</button>
-          <button class="btn primary" id="s-save">Create</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="group-filter" class="filter-select">
+            <option value="all">All Groups</option>
+            <option value="students">Students</option>
+            <option value="teachers">Teachers</option>
+            <option value="admins">Admins</option>
+          </select>
+          <button class="btn primary" id="add-user-btn">+ Add User</button>
         </div>
-        <p id="s-msg" class="msg"></p>
+      </div>
+      <div id="users-list" class="card-list"></div>
+
+      <div id="add-user-form" class="form-card hidden">
+        <h3>Add User</h3>
+        <input type="text" id="u-username" placeholder="Username" />
+        <input type="email" id="u-email" placeholder="Email" />
+        <input type="password" id="u-password" placeholder="Password" />
+        <select id="u-group">
+          <option value="students">Student</option>
+          <option value="teachers">Teacher</option>
+          <option value="admins">Admin</option>
+        </select>
+        <div class="form-actions">
+          <button class="btn" id="u-cancel">Cancel</button>
+          <button class="btn primary" id="u-save">Create</button>
+        </div>
+        <p id="u-msg" class="msg"></p>
+      </div>
+
+      <!-- Edit User Modal -->
+      <div id="edit-user-modal" class="modal hidden">
+        <div class="modal-card">
+          <h3>Edit User</h3>
+          <input type="hidden" id="edit-username" />
+          <input type="text" id="edit-firstName" placeholder="First name" />
+          <input type="text" id="edit-lastName" placeholder="Last name" />
+          <input type="date" id="edit-dob" />
+          <select id="edit-group">
+            <option value="students">Student</option>
+            <option value="teachers">Teacher</option>
+            <option value="admins">Admin</option>
+          </select>
+          <div class="modal-actions">
+            <button id="edit-cancel">Cancel</button>
+            <button id="edit-save" class="primary">Save</button>
+          </div>
+          <p id="edit-msg" class="msg"></p>
+        </div>
       </div>
     </div>
 
-    <!-- Admin Tab -->
+    <!-- COURSES TAB -->
     <div id="tab-courses" class="tab-panel hidden">
       <div class="panel-header">
         <h2>Courses</h2>
-        <button class="btn primary" id="add-class-btn">+ New Course</button>
+        <button class="btn primary" id="add-course-btn">+ Add Course</button>
       </div>
-      <div id="classes-list" class="card-list"></div>
-
-      <div id="add-class-form" class="form-card hidden">
+      <div id="courses-list" class="card-list"></div>
+      <div id="add-course-form" class="form-card hidden">
         <h3>New Course</h3>
-        <input type="text" id="c-name" placeholder="Course name (e.g. Grade 9 Math)" />
+        <input type="text" id="c-name" placeholder="Course name" />
+        <textarea id="c-desc" placeholder="Description (optional)"></textarea>
         <div class="form-actions">
           <button class="btn" id="c-cancel">Cancel</button>
           <button class="btn primary" id="c-save">Create</button>
         </div>
         <p id="c-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- CLASSES TAB -->
+    <div id="tab-classes" class="tab-panel hidden">
+      <div class="panel-header">
+        <h2>Classes</h2>
+        <button class="btn primary" id="add-class-btn">+ Add Class</button>
+      </div>
+      <div id="classes-list" class="card-list"></div>
+      <div id="add-class-form" class="form-card hidden">
+        <h3>New Class</h3>
+        <input type="text" id="cl-name" placeholder="Class name (e.g. Grade 9 Math)" />
+        <div class="form-actions">
+          <button class="btn" id="cl-cancel">Cancel</button>
+          <button class="btn primary" id="cl-save">Create</button>
+        </div>
+        <p id="cl-msg" class="msg"></p>
+      </div>
+    </div>
+
+    <!-- ANNOUNCEMENTS TAB -->
+    <div id="tab-announcements" class="tab-panel hidden">
+      <div class="panel-header">
+        <h2>Announcements</h2>
+        <button class="btn primary" id="add-ann-btn">+ Add Announcement</button>
+      </div>
+      <div id="announcements-list" class="card-list"></div>
+
+      <div id="ann-form" class="form-card hidden">
+        <h3 id="ann-form-title">New Announcement</h3>
+        <input type="hidden" id="ann-id" />
+        <input type="text" id="ann-title" placeholder="Title" />
+        <textarea id="ann-message" placeholder="Message (optional)"></textarea>
+        <div>
+          <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Assign to</label>
+          <select id="ann-assign-type" class="filter-select" style="width:100%;margin-bottom:8px">
+            <option value="all">All students</option>
+            <option value="class">Specific class(es)</option>
+            <option value="individual">Individual students</option>
+          </select>
+          <div id="ann-class-select" class="hidden">
+            <div id="ann-class-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px"></div>
+          </div>
+          <div id="ann-individual-input" class="hidden">
+            <input type="text" id="ann-usernames" placeholder="Comma-separated usernames" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn" id="ann-cancel">Cancel</button>
+          <button class="btn primary" id="ann-save">Save</button>
+        </div>
+        <p id="ann-msg" class="msg"></p>
       </div>
     </div>
   </main>
