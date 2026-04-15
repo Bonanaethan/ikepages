@@ -29,6 +29,11 @@
       <button class="filter-btn" data-filter="pending">Pending</button>
       <button class="filter-btn" data-filter="done">Done</button>
     </div>
+    <div id="course-filter-bar" style="margin-bottom:16px;display:none">
+      <select id="hw-course-filter" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 14px;color:var(--text);font-size:13px;font-family:inherit;outline:none;cursor:pointer">
+        <option value="all">All Courses</option>
+      </select>
+    </div>
     <div id="hw-list" class="hw-list"></div>
     <div id="hw-empty" class="empty-state hidden">No assignments here.</div>
   </main>

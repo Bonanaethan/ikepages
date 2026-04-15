@@ -38,7 +38,9 @@ async function loadHandouts() {
 function renderHandouts() {
   const list = document.getElementById('handouts-list');
   const filterVal = document.getElementById('course-filter')?.value || 'all';
-  const filtered = filterVal === 'all' ? allHandouts : allHandouts.filter(h => h.courseId === filterVal);
+  const filtered = (filterVal === 'all' ? allHandouts : allHandouts.filter(h => h.courseId === filterVal))
+    .slice()
+    .sort((a, b) => a.title.localeCompare(b.title));
   if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:14px">No handouts available.</p>'; return; }
   list.innerHTML = '';
   filtered.forEach(h => {

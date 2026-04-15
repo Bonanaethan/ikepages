@@ -30,13 +30,26 @@ function escAttr(str) { return String(str).replace(/"/g,'&quot;'); }
 
 // ---- LOAD DATA ----
 async function init() {
+  // Load courses for everyone (for filter)
+  const coursesRes = await AUTH.api('GET', '/admin/classes');
+  allCourses = Array.isArray(coursesRes) ? coursesRes : [];
+
+  if (allCourses.length) {
+    const filterBar = document.getElementById('course-filter-bar');
+    const filterSel = document.getElementById('hw-course-filter');
+    filterBar.style.display = '';
+    filterSel.innerHTML = '<option value="all">All Courses</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+    filterSel.addEventListener('change', render);
+  }
+
+  // Populate editor course dropdown for teachers
   if (isTeacher) {
-    const res = await AUTH.api('GET', '/admin/classes');
-    allCourses = Array.isArray(res) ? res : [];
     const sel = document.getElementById('hw-course');
     if (sel) sel.innerHTML = '<option value="">No course</option>' +
       allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
   }
+
   const [assignments, done] = await Promise.all([
     AUTH.api('GET', '/assignments'),
     AUTH.api('GET', '/assignments/done')
@@ -54,11 +67,17 @@ function render() {
 
   const all = [...BUILTINS, ...allAssignments];
 
+  const courseFilter = document.getElementById('hw-course-filter')?.value || 'all';
+
   let filtered = all.filter(hw => {
     const done = !!doneMap[hw.sk];
     if (currentFilter === 'pending') return !done;
     if (currentFilter === 'done') return done;
     return true;
+  }).filter(hw => {
+    if (courseFilter === 'all') return true;
+    if (hw.builtin) return false;
+    return hw.courseId === courseFilter;
   });
 
   filtered.sort((a, b) => {
