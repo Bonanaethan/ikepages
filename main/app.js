@@ -240,16 +240,24 @@ if (AUTH.isTeacher() || AUTH.isAdmin()) {
   const cognitoUsername = AUTH.getUser()?.['cognito:username'] || '';
   const groupLabel = role ? ` (${role})` : '';
 
+  // Always show username (with role) in top right
+  document.getElementById('nav-username').textContent = cognitoUsername + groupLabel;
+
+  // Try to get profile for first/last name for the greeting
+  const profile = await AUTH.api('GET', '/profile');
+
   if (!AUTH.isTeacher() && !AUTH.isAdmin()) {
-    const profile = await AUTH.api('GET', '/profile');
+    // Students must complete profile
     if (!profile.firstName) {
       window.location.href = '../profile/index.html';
       return;
     }
-    updateGreeting(profile.firstName);
-    document.getElementById('nav-username').textContent = cognitoUsername + groupLabel;
+  }
+
+  // Show first + last name in greeting if available, otherwise username
+  if (profile.firstName) {
+    updateGreeting(profile.firstName + ' ' + profile.lastName);
   } else {
     updateGreeting(cognitoUsername);
-    document.getElementById('nav-username').textContent = cognitoUsername + groupLabel;
   }
 })();
