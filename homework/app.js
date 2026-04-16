@@ -28,8 +28,8 @@ async function init() {
     // For students, only show courses accessible via their classes
     let visibleCourses = allCourses;
     if (!isTeacher) {
-      // Get student's classes, then find their course IDs
-      const classesRes = await AUTH.api('GET', '/admin/classes');
+      // Get student's own classes, then find their course IDs
+      const classesRes = await AUTH.api('GET', '/my/classes');
       const allClassesList = Array.isArray(classesRes) ? classesRes : [];
       const studentClasses = allClassesList.filter(c => (c.members || []).includes(username));
       const studentCourseIds = new Set(studentClasses.map(c => c.courseId).filter(Boolean));

@@ -34,7 +34,7 @@ def get_role(event):
         if 'students' in groups_list: return 'student'
         return None
     except:
-        return None
+        return NoneI 
 
 def get_username(event):
     try:
@@ -193,6 +193,16 @@ def lambda_handler(event, context):
 
     # ==================== CLASSES ====================
     # Classes are groups of students. Each class belongs to one course.
+
+    # GET /my/classes — get classes the current student belongs to (any role)
+    if method == 'GET' and path == '/prod/my/classes':
+        try:
+            username = get_username(event)
+            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            my_classes = [c for c in result.get('Items', []) if username in (c.get('members') or [])]
+            return resp(200, my_classes)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
 
     if method == 'GET' and path == '/prod/admin/classes':
         if get_role(event) not in ('admin', 'teacher'):
