@@ -11,17 +11,7 @@ let editingId = null;
 let currentFilter = 'all';
 
 // Built-in assignments (always present)
-const BUILTINS = [
-  {
-    sk: '__builtin_g9w1__',
-    title: 'MathMind G9 — Winter Practice 1',
-    subject: 'Math',
-    dueDate: '',
-    courseId: '',
-    builtin: true,
-    practiceLink: 'practice-g9-winter-1.html'
-  }
-];
+const BUILTINS = [];
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
