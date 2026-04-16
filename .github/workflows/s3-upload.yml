@@ -22,7 +22,7 @@ jobs:
 
       - name: Sync files to S3
         run: |
-          aws s3 sync . s3://${{ secrets.AWS_S3_BUCKET }} --exclude ".git/*" --exclude ".github/*" --delete
+          aws s3 sync . s3://${{ secrets.AWS_S3_BUCKET }} --exclude ".git/*" --exclude ".github/*"
 
       - name: invalidate cloudfront
         run: |
