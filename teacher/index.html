@@ -124,6 +124,23 @@
         </div>
         <p id="cl-msg" class="msg"></p>
       </div>
+
+      <!-- Edit Class Modal -->
+      <div id="edit-class-modal" class="modal hidden">
+        <div class="modal-card">
+          <h3>Edit Class</h3>
+          <input type="hidden" id="edit-class-id" />
+          <input type="text" id="edit-class-name" placeholder="Class name" />
+          <select id="edit-class-course">
+            <option value="">Select a course...</option>
+          </select>
+          <div class="modal-actions">
+            <button id="edit-class-cancel">Cancel</button>
+            <button id="edit-class-save" class="primary">Save</button>
+          </div>
+          <p id="edit-class-msg" class="msg"></p>
+        </div>
+      </div>
     </div>
 
     <!-- ANNOUNCEMENTS TAB -->

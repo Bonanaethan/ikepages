@@ -221,7 +221,10 @@ async function loadClasses() {
           <div class="item-card-sub">Course: <span style="color:var(--yellow)">${courseName}</span></div>
           <div class="item-card-sub">${(cl.members||[]).length} student(s)</div>
         </div>
-        <button class="btn danger" onclick="deleteClass('${cl.sk}')">Delete</button>
+        <div style="display:flex;gap:6px">
+          <button class="btn" onclick="openEditClass('${cl.sk}')">Edit</button>
+          <button class="btn danger" onclick="deleteClass('${cl.sk}')">Delete</button>
+        </div>
       </div>
       ${(cl.members||[]).length ? `
       <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:1px solid var(--border);width:100%">
@@ -235,6 +238,33 @@ async function loadClasses() {
     list.appendChild(card);
   });
 }
+
+window.openEditClass = (classId) => {
+  const cl = allClasses.find(x => x.sk === classId);
+  if (!cl) return;
+  document.getElementById('edit-class-id').value = classId;
+  document.getElementById('edit-class-name').value = cl.name || '';
+  const courseSelect = document.getElementById('edit-class-course');
+  courseSelect.innerHTML = '<option value="">Select a course...</option>' +
+    allCourses.map(c => `<option value="${c.sk}"${c.sk === cl.courseId ? ' selected' : ''}>${c.name}</option>`).join('');
+  document.getElementById('edit-class-msg').textContent = '';
+  document.getElementById('edit-class-modal').classList.remove('hidden');
+};
+
+document.getElementById('edit-class-cancel').addEventListener('click', () => document.getElementById('edit-class-modal').classList.add('hidden'));
+document.getElementById('edit-class-save').addEventListener('click', async () => {
+  const msg = document.getElementById('edit-class-msg');
+  const classId = document.getElementById('edit-class-id').value;
+  const name = document.getElementById('edit-class-name').value.trim();
+  const courseId = document.getElementById('edit-class-course').value;
+  if (!name) { msg.textContent = 'Name required.'; msg.className = 'msg error'; return; }
+  if (!courseId) { msg.textContent = 'Please select a course.'; msg.className = 'msg error'; return; }
+  msg.textContent = 'Saving...'; msg.className = 'msg';
+  const res = await AUTH.api('PUT', `/admin/classes/${classId}`, { name, courseId });
+  if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
+  msg.textContent = 'Saved.'; msg.className = 'msg success';
+  setTimeout(() => { document.getElementById('edit-class-modal').classList.add('hidden'); loadClasses(); }, 800);
+});
 
 window.deleteClass = async (id) => {
   if (!confirm('Delete this class?')) return;
