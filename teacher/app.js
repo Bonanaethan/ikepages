@@ -36,15 +36,10 @@ function renderUsers() {
   if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No users found.</p>'; return; }
   list.innerHTML = '';
   filtered.forEach(u => {
+    const userClasses = allClasses.filter(cl => (cl.members||[]).includes(u.username));
     const card = document.createElement('div');
     card.className = 'item-card';
-    card.style.flexDirection = 'column';
-    card.style.alignItems = 'flex-start';
-    card.style.gap = '10px';
-
-    // Find classes this user belongs to
-    const userClasses = allClasses.filter(cl => (cl.members||[]).includes(u.username));
-
+    card.style.cssText = 'flex-direction:column;align-items:flex-start;gap:10px';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
         <div class="item-card-info">
@@ -60,16 +55,21 @@ function renderUsers() {
       <div style="width:100%;border-top:1px solid var(--border);padding-top:8px">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Classes</div>
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-          ${userClasses.length ? userClasses.map(cl => `
-            <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px">
-              ${cl.name}
+          ${userClasses.length ? userClasses.map(cl => {
+            const courseName = allCourses.find(c => c.sk === cl.courseId)?.name || '';
+            return `<span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px">
+              ${cl.name}${courseName ? ` <span style="color:var(--muted)">(${courseName})</span>` : ''}
               <button onclick="removeMember('${cl.sk}','${u.username}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>
-            </span>`).join('') : '<span style="font-size:12px;color:var(--muted)">No classes</span>'}
+            </span>`;
+          }).join('') : '<span style="font-size:12px;color:var(--muted)">No classes</span>'}
         </div>
         <div style="display:flex;gap:6px;align-items:center">
           <select id="class-select-${u.username}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;cursor:pointer">
             <option value="">Assign to class...</option>
-            ${allClasses.map(cl => `<option value="${cl.sk}">${cl.name}</option>`).join('')}
+            ${allClasses.map(cl => {
+              const courseName = allCourses.find(c => c.sk === cl.courseId)?.name || '';
+              return `<option value="${cl.sk}">${cl.name}${courseName ? ` (${courseName})` : ''}</option>`;
+            }).join('')}
           </select>
           <button class="btn" onclick="assignToClass('${u.username}')">Assign</button>
         </div>
@@ -121,12 +121,12 @@ window.assignToClass = async (username) => {
   if (!classId) return;
   await AUTH.api('POST', `/admin/classes/${classId}/members`, { username });
   sel.value = '';
-  loadUsers(); loadClasses();
+  await Promise.all([loadUsers(), loadClasses()]);
 };
 
 window.removeMember = async (classId, username) => {
   await AUTH.api('DELETE', `/admin/classes/${classId}/members/${username}`);
-  loadUsers(); loadClasses();
+  await Promise.all([loadUsers(), loadClasses()]);
 };
 
 document.getElementById('add-user-btn').addEventListener('click', () => document.getElementById('add-user-form').classList.toggle('hidden'));
@@ -157,12 +157,15 @@ async function loadCourses() {
   if (!allCourses.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No courses yet.</p>'; return; }
   list.innerHTML = '';
   allCourses.forEach(c => {
+    // Count classes using this course
+    const classCount = allClasses.filter(cl => cl.courseId === c.sk).length;
     const card = document.createElement('div');
     card.className = 'item-card';
     card.innerHTML = `
       <div class="item-card-info">
         <div class="item-card-title">${c.name}</div>
         ${c.description ? `<div class="item-card-sub">${c.description}</div>` : ''}
+        <div class="item-card-sub">${classCount} class${classCount !== 1 ? 'es' : ''}</div>
       </div>
       <button class="btn danger" onclick="deleteCourse('${c.sk}')">Delete</button>`;
     list.appendChild(card);
@@ -170,7 +173,7 @@ async function loadCourses() {
 }
 
 window.deleteCourse = async (id) => {
-  if (!confirm('Delete this course?')) return;
+  if (!confirm('Delete this course? Classes assigned to it will lose their course link.')) return;
   await AUTH.api('DELETE', `/admin/courses/${id}`);
   loadCourses();
 };
@@ -196,41 +199,39 @@ async function loadClasses() {
   list.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
   const res = await AUTH.api('GET', '/admin/classes');
   allClasses = Array.isArray(res) ? res : [];
+
+  // Populate course dropdown in add form
+  const clCourse = document.getElementById('cl-course');
+  if (clCourse) {
+    clCourse.innerHTML = '<option value="">Select a course...</option>' +
+      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+  }
+
   if (!allClasses.length) { list.innerHTML = '<p style="color:var(--muted);font-size:13px">No classes yet.</p>'; return; }
   list.innerHTML = '';
   allClasses.forEach(cl => {
+    const courseName = allCourses.find(c => c.sk === cl.courseId)?.name || 'No course';
     const card = document.createElement('div');
     card.className = 'item-card';
-    card.style.flexDirection = 'column';
-    card.style.alignItems = 'flex-start';
-    card.style.gap = '10px';
-    const assignedCourses = (cl.courseIds||[]).map(cid => allCourses.find(c => c.sk === cid)?.name || cid);
+    card.style.cssText = 'flex-direction:column;align-items:flex-start;gap:10px';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
         <div class="item-card-info">
           <div class="item-card-title">${cl.name}</div>
-          <div class="item-card-sub">${(cl.members||[]).length} member(s)</div>
+          <div class="item-card-sub">Course: <span style="color:var(--yellow)">${courseName}</span></div>
+          <div class="item-card-sub">${(cl.members||[]).length} student(s)</div>
         </div>
         <button class="btn danger" onclick="deleteClass('${cl.sk}')">Delete</button>
       </div>
       ${(cl.members||[]).length ? `
-      <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:4px;border-top:1px solid var(--border);width:100%">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;width:100%;margin-bottom:4px">Members</div>
-        ${(cl.members||[]).map(m => `<span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px">${m}</span>`).join('')}
-      </div>` : ''}
-      <div style="border-top:1px solid var(--border);padding-top:8px;width:100%">
-        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Assigned Courses</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-          ${assignedCourses.length ? assignedCourses.map(n => `<span style="background:var(--yellow-lt);border:1px solid var(--yellow-bd);border-radius:6px;padding:3px 10px;font-size:12px;color:var(--yellow)">${n}</span>`).join('') : '<span style="font-size:12px;color:var(--muted)">None</span>'}
-        </div>
-        <div style="display:flex;gap:6px">
-          <select id="course-assign-${cl.sk}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;cursor:pointer">
-            <option value="">Assign course...</option>
-            ${allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('')}
-          </select>
-          <button class="btn" onclick="assignCourseToClass('${cl.sk}')">Assign</button>
-        </div>
-      </div>`;
+      <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:1px solid var(--border);width:100%">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;width:100%;margin-bottom:4px">Students</div>
+        ${(cl.members||[]).map(m => `
+          <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px">
+            ${m}
+            <button onclick="removeMember('${cl.sk}','${m}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>
+          </span>`).join('')}
+      </div>` : ''}`;
     list.appendChild(card);
   });
 }
@@ -241,26 +242,20 @@ window.deleteClass = async (id) => {
   loadClasses();
 };
 
-window.assignCourseToClass = async (classId) => {
-  const sel = document.getElementById(`course-assign-${classId}`);
-  const courseId = sel?.value;
-  if (!courseId) return;
-  await AUTH.api('POST', `/admin/classes/${classId}/courses`, { courseId });
-  sel.value = '';
-  loadClasses();
-};
-
 document.getElementById('add-class-btn').addEventListener('click', () => document.getElementById('add-class-form').classList.toggle('hidden'));
 document.getElementById('cl-cancel').addEventListener('click', () => document.getElementById('add-class-form').classList.add('hidden'));
 document.getElementById('cl-save').addEventListener('click', async () => {
   const msg = document.getElementById('cl-msg');
   const name = document.getElementById('cl-name').value.trim();
+  const courseId = document.getElementById('cl-course').value;
   if (!name) { msg.textContent = 'Name required.'; msg.className = 'msg error'; return; }
+  if (!courseId) { msg.textContent = 'Please select a course.'; msg.className = 'msg error'; return; }
   msg.textContent = 'Saving...'; msg.className = 'msg';
-  const res = await AUTH.api('POST', '/admin/classes', { name });
+  const res = await AUTH.api('POST', '/admin/classes', { name, courseId });
   if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
   msg.textContent = 'Class created.'; msg.className = 'msg success';
   document.getElementById('cl-name').value = '';
+  document.getElementById('cl-course').value = '';
   loadClasses();
 });
 
@@ -276,9 +271,7 @@ async function loadAnnouncements() {
     const assigned = a.assignedTo === 'all' ? 'All students' : Array.isArray(a.assignedTo) ? a.assignedTo.join(', ') : a.assignedTo;
     const card = document.createElement('div');
     card.className = 'item-card';
-    card.style.flexDirection = 'column';
-    card.style.alignItems = 'flex-start';
-    card.style.gap = '6px';
+    card.style.cssText = 'flex-direction:column;align-items:flex-start;gap:6px';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
         <div class="item-card-info">
@@ -301,7 +294,6 @@ function openAnnForm(ann = null) {
   document.getElementById('ann-title').value = ann?.title || '';
   document.getElementById('ann-message').value = ann?.message || '';
   document.getElementById('ann-msg').textContent = '';
-
   const assigned = ann?.assignedTo || 'all';
   if (assigned === 'all') {
     document.getElementById('ann-assign-type').value = 'all';
@@ -312,15 +304,12 @@ function openAnnForm(ann = null) {
     document.getElementById('ann-usernames').value = Array.isArray(assigned) ? assigned.join(', ') : '';
   }
   updateAssignUI();
-
-  // Pre-check class checkboxes
   if (Array.isArray(assigned)) {
     assigned.forEach(id => {
       const cb = document.getElementById(`ann-class-cb-${id}`);
       if (cb) cb.checked = true;
     });
   }
-
   document.getElementById('ann-form').classList.remove('hidden');
 }
 
@@ -339,19 +328,19 @@ function updateAssignUI() {
   const type = document.getElementById('ann-assign-type').value;
   document.getElementById('ann-class-select').classList.toggle('hidden', type !== 'class');
   document.getElementById('ann-individual-input').classList.toggle('hidden', type !== 'individual');
-
   if (type === 'class') {
     const container = document.getElementById('ann-class-checkboxes');
-    container.innerHTML = allClasses.map(cl => `
-      <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px">
+    container.innerHTML = allClasses.map(cl => {
+      const courseName = allCourses.find(c => c.sk === cl.courseId)?.name || '';
+      return `<label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:13px">
         <input type="checkbox" id="ann-class-cb-${cl.sk}" value="${cl.sk}" />
-        ${cl.name}
-      </label>`).join('');
+        ${cl.name}${courseName ? ` <span style="color:var(--muted);font-size:11px">(${courseName})</span>` : ''}
+      </label>`;
+    }).join('');
   }
 }
 
 document.getElementById('ann-assign-type').addEventListener('change', updateAssignUI);
-
 document.getElementById('add-ann-btn').addEventListener('click', () => openAnnForm());
 document.getElementById('ann-cancel').addEventListener('click', () => document.getElementById('ann-form').classList.add('hidden'));
 document.getElementById('ann-save').addEventListener('click', async () => {
@@ -359,7 +348,6 @@ document.getElementById('ann-save').addEventListener('click', async () => {
   const id = document.getElementById('ann-id').value;
   const title = document.getElementById('ann-title').value.trim();
   if (!title) { msg.textContent = 'Title required.'; msg.className = 'msg error'; return; }
-
   const type = document.getElementById('ann-assign-type').value;
   let assignedTo = 'all';
   if (type === 'class') {
@@ -367,13 +355,10 @@ document.getElementById('ann-save').addEventListener('click', async () => {
   } else if (type === 'individual') {
     assignedTo = document.getElementById('ann-usernames').value.split(',').map(s => s.trim()).filter(Boolean);
   }
-
   msg.textContent = 'Saving...'; msg.className = 'msg';
   const method = id ? 'PUT' : 'POST';
   const endpoint = id ? `/announcements/${id}` : '/announcements';
-  const res = await AUTH.api(method, endpoint, {
-    title, message: document.getElementById('ann-message').value.trim(), assignedTo
-  });
+  const res = await AUTH.api(method, endpoint, { title, message: document.getElementById('ann-message').value.trim(), assignedTo });
   if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
   msg.textContent = id ? 'Updated.' : 'Posted.'; msg.className = 'msg success';
   setTimeout(() => { document.getElementById('ann-form').classList.add('hidden'); loadAnnouncements(); }, 800);
@@ -381,5 +366,6 @@ document.getElementById('ann-save').addEventListener('click', async () => {
 
 // ==================== INIT ====================
 (async () => {
-  await Promise.all([loadUsers(), loadCourses(), loadClasses()]);
+  await Promise.all([loadCourses(), loadClasses()]);
+  loadUsers();
 })();

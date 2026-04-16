@@ -21,14 +21,19 @@ function escAttr(str) { return String(str).replace(/"/g,'&quot;'); }
 // ---- LOAD DATA ----
 async function init() {
   // Load courses for everyone (for filter)
-  const coursesRes = await AUTH.api('GET', '/admin/classes');
+  const coursesRes = await AUTH.api('GET', '/admin/courses');
   allCourses = Array.isArray(coursesRes) ? coursesRes : [];
 
   if (allCourses.length) {
-    // For students, only show classes they're enrolled in
+    // For students, only show courses accessible via their classes
     let visibleCourses = allCourses;
     if (!isTeacher) {
-      visibleCourses = allCourses.filter(c => (c.members || []).includes(username));
+      // Get student's classes, then find their course IDs
+      const classesRes = await AUTH.api('GET', '/admin/classes');
+      const allClassesList = Array.isArray(classesRes) ? classesRes : [];
+      const studentClasses = allClassesList.filter(c => (c.members || []).includes(username));
+      const studentCourseIds = new Set(studentClasses.map(c => c.courseId).filter(Boolean));
+      visibleCourses = allCourses.filter(c => studentCourseIds.has(c.sk));
     }
     if (visibleCourses.length) {
       const filterBar = document.getElementById('course-filter-bar');

@@ -27,9 +27,9 @@
   <main class="content">
     <div class="tabs">
       <button class="tab-btn active" data-tab="users">Users</button>
-      <button class="tab-btn" data-tab="courses" id="tab-btn-courses">Courses</button>
-      <button class="tab-btn" data-tab="classes" id="tab-btn-classes">Classes</button>
-      <button class="tab-btn" data-tab="announcements" id="tab-btn-announcements">Announcements</button>
+      <button class="tab-btn" data-tab="courses">Courses</button>
+      <button class="tab-btn" data-tab="classes">Classes</button>
+      <button class="tab-btn" data-tab="announcements">Announcements</button>
     </div>
 
     <!-- USERS TAB -->
@@ -47,7 +47,6 @@
         </div>
       </div>
       <div id="users-list" class="card-list"></div>
-
       <div id="add-user-form" class="form-card hidden">
         <h3>Add User</h3>
         <input type="text" id="u-username" placeholder="Username" />
@@ -64,8 +63,6 @@
         </div>
         <p id="u-msg" class="msg"></p>
       </div>
-
-      <!-- Edit User Modal -->
       <div id="edit-user-modal" class="modal hidden">
         <div class="modal-card">
           <h3>Edit User</h3>
@@ -93,10 +90,11 @@
         <h2>Courses</h2>
         <button class="btn primary" id="add-course-btn">+ Add Course</button>
       </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Courses are curriculum units. Handouts and homework are linked to courses.</p>
       <div id="courses-list" class="card-list"></div>
       <div id="add-course-form" class="form-card hidden">
         <h3>New Course</h3>
-        <input type="text" id="c-name" placeholder="Course name" />
+        <input type="text" id="c-name" placeholder="Course name (e.g. G9-Math-Fall)" />
         <textarea id="c-desc" placeholder="Description (optional)"></textarea>
         <div class="form-actions">
           <button class="btn" id="c-cancel">Cancel</button>
@@ -112,10 +110,14 @@
         <h2>Classes</h2>
         <button class="btn primary" id="add-class-btn">+ Add Class</button>
       </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Classes are groups of students. Each class belongs to one course and inherits its handouts and homework.</p>
       <div id="classes-list" class="card-list"></div>
       <div id="add-class-form" class="form-card hidden">
         <h3>New Class</h3>
-        <input type="text" id="cl-name" placeholder="Class name (e.g. Grade 9 Math)" />
+        <input type="text" id="cl-name" placeholder="Class name (e.g. G9-Math-Fall-2025-A)" />
+        <select id="cl-course">
+          <option value="">Select a course...</option>
+        </select>
         <div class="form-actions">
           <button class="btn" id="cl-cancel">Cancel</button>
           <button class="btn primary" id="cl-save">Create</button>
@@ -131,7 +133,6 @@
         <button class="btn primary" id="add-ann-btn">+ Add Announcement</button>
       </div>
       <div id="announcements-list" class="card-list"></div>
-
       <div id="ann-form" class="form-card hidden">
         <h3 id="ann-form-title">New Announcement</h3>
         <input type="hidden" id="ann-id" />
