@@ -177,6 +177,16 @@
   font-weight: 600;
 }
 
+/* ---- NUMBER INPUT SPINNER ---- */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* ---- DATE / TIME INPUTS ---- */
 input[type="date"],
 input[type="time"],

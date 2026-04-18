@@ -67,8 +67,12 @@
         <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:24px;flex-wrap:wrap">
           <div>
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Number of sessions</label>
-            <input type="number" id="session-count" min="1" max="52" value="1"
-              style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-size:14px;font-family:inherit;outline:none;width:100px" />
+            <div style="display:flex;align-items:center;gap:0;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius,8px);overflow:hidden;width:fit-content">
+              <button onclick="changeCount(-1)" style="background:none;border:none;border-right:1px solid var(--border);color:var(--muted);padding:8px 14px;cursor:pointer;font-size:16px;font-family:inherit;transition:all 0.15s;line-height:1" onmouseover="this.style.color='var(--yellow)'" onmouseout="this.style.color='var(--muted)'">−</button>
+              <input type="number" id="session-count" min="1" max="52" value="1"
+                style="background:transparent;border:none;color:var(--text);font-size:14px;font-family:inherit;outline:none;width:52px;text-align:center;padding:8px 4px" />
+              <button onclick="changeCount(1)" style="background:none;border:none;border-left:1px solid var(--border);color:var(--muted);padding:8px 14px;cursor:pointer;font-size:16px;font-family:inherit;transition:all 0.15s;line-height:1" onmouseover="this.style.color='var(--yellow)'" onmouseout="this.style.color='var(--muted)'">+</button>
+            </div>
           </div>
           <div>
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">Start time</label>
@@ -167,6 +171,12 @@
     })();
 
     // ---- SCHEDULE ----
+    window.changeCount = (delta) => {
+      const input = document.getElementById('session-count');
+      const val = Math.max(1, Math.min(52, (parseInt(input.value) || 1) + delta));
+      input.value = val;
+    };
+
     document.getElementById('generate-sessions-btn').addEventListener('click', () => {
       const count = parseInt(document.getElementById('session-count').value) || 1;
       // Keep existing dates if count matches, otherwise reset
