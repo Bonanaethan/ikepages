@@ -97,7 +97,29 @@ function render() {
   if (!filtered.length) { empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
 
-  filtered.forEach(hw => {
+  if (!isTeacher && courseFilter === 'all') {
+    // Group by course for students when showing all
+    const groups = {};
+    filtered.forEach(hw => {
+      const key = hw.courseId || '__none__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(hw);
+    });
+
+    Object.entries(groups).forEach(([courseId, items]) => {
+      const courseName = allCourses.find(c => c.sk === courseId)?.name || (courseId === '__none__' ? 'General' : 'Unknown');
+      const header = document.createElement('div');
+      header.style.cssText = 'font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--yellow);font-weight:600;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)';
+      header.textContent = courseName;
+      list.appendChild(header);
+      items.forEach(hw => renderHwCard(hw, list));
+    });
+  } else {
+    filtered.forEach(hw => renderHwCard(hw, list));
+  }
+}
+
+function renderHwCard(hw, list) {
     const done = !!doneMap[hw.sk];
     const overdue = hw.dueDate && !done && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
     const dueText = hw.dueDate
@@ -137,7 +159,6 @@ function render() {
     card.querySelector('.hw-delete')?.addEventListener('click', e => { e.stopPropagation(); deleteHw(hw.sk); });
 
     list.appendChild(card);
-  });
 }
 
 async function toggleDone(id) {

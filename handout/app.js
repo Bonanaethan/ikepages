@@ -40,29 +40,53 @@ function renderHandouts() {
   const filterVal = document.getElementById('course-filter')?.value || 'all';
   const filtered = (filterVal === 'all' ? allHandouts : allHandouts.filter(h => h.courseId === filterVal))
     .slice()
-    .sort((a, b) => a.title.localeCompare(b.title));
+    .sort((a, b) => {
+      // Sort by course name first, then title
+      const ca = allCourses.find(c => c.sk === a.courseId)?.name || '';
+      const cb = allCourses.find(c => c.sk === b.courseId)?.name || '';
+      if (ca !== cb) return ca.localeCompare(cb);
+      return a.title.localeCompare(b.title);
+    });
+
   if (!filtered.length) { list.innerHTML = '<p style="color:var(--muted);font-size:14px">No handouts available.</p>'; return; }
   list.innerHTML = '';
+
+  // Group by course
+  const groups = {};
   filtered.forEach(h => {
-    const courseName = allCourses.find(c => c.sk === h.courseId)?.name || '';
-    const parsedBlocks = tryParseBlocks(h.content);
-    const blockCount = parsedBlocks.length;
-    const card = document.createElement('div');
-    card.className = 'hw-card';
-    card.style.cursor = 'pointer';
-    card.innerHTML = `
-      <div class="hw-card-body" onclick="window.location.href='view.html?id=${h.sk}'">
-        <div class="hw-card-subject">${courseName || 'Handout'}</div>
-        <div class="hw-card-title">📄 ${h.title}</div>
-        <div class="hw-card-meta">${blockCount} block${blockCount !== 1 ? 's' : ''}</div>
-      </div>
-      <div class="hw-card-actions">
-        ${isTeacher ? `
-          <button class="btn" onclick="event.stopPropagation();openEditor('${h.sk}')">Edit</button>
-          <button class="btn danger" onclick="event.stopPropagation();deleteHandout('${h.sk}')">Delete</button>
-        ` : ''}
-      </div>`;
-    list.appendChild(card);
+    const key = h.courseId || '__none__';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(h);
+  });
+
+  Object.entries(groups).forEach(([courseId, handouts]) => {
+    const courseName = allCourses.find(c => c.sk === courseId)?.name || (courseId === '__none__' ? 'General' : 'Unknown');
+
+    // Course header
+    const header = document.createElement('div');
+    header.style.cssText = 'font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--yellow);font-weight:600;margin:20px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--border)';
+    header.textContent = courseName;
+    list.appendChild(header);
+
+    handouts.forEach(h => {
+      const parsedBlocks = tryParseBlocks(h.content);
+      const blockCount = parsedBlocks.length;
+      const card = document.createElement('div');
+      card.className = 'hw-card';
+      card.style.cursor = 'pointer';
+      card.innerHTML = `
+        <div class="hw-card-body" onclick="window.location.href='view.html?id=${h.sk}'">
+          <div class="hw-card-title">📄 ${h.title}</div>
+          <div class="hw-card-meta">${blockCount} block${blockCount !== 1 ? 's' : ''}</div>
+        </div>
+        <div class="hw-card-actions">
+          ${isTeacher ? `
+            <button class="btn" onclick="event.stopPropagation();openEditor('${h.sk}')">Edit</button>
+            <button class="btn danger" onclick="event.stopPropagation();deleteHandout('${h.sk}')">Delete</button>
+          ` : ''}
+        </div>`;
+      list.appendChild(card);
+    });
   });
 }
 
@@ -337,6 +361,14 @@ function escAttr(str) {
   allCourses = Array.isArray(res) ? res : [];
 
   const filter = document.getElementById('course-filter');
+
+  if (!isTeacher) {
+    // Students only see courses from their classes
+    const myClasses = await AUTH.api('GET', '/my/classes');
+    const myCourseIds = new Set((Array.isArray(myClasses) ? myClasses : []).map(c => c.courseId).filter(Boolean));
+    allCourses = allCourses.filter(c => myCourseIds.has(c.sk));
+  }
+
   if (allCourses.length) {
     document.getElementById('filter-bar').style.display = '';
     filter.innerHTML = '<option value="all">All Courses</option>' +
@@ -346,8 +378,10 @@ function escAttr(str) {
   if (isTeacher) {
     const courseSelect = document.getElementById('h-course');
     if (courseSelect) {
+      const allCoursesRes = await AUTH.api('GET', '/admin/courses');
+      const allCoursesList = Array.isArray(allCoursesRes) ? allCoursesRes : [];
       courseSelect.innerHTML = '<option value="">No course</option>' +
-        allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+        allCoursesList.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
     }
   }
 
