@@ -1,0 +1,246 @@
+/* ============================================
+   iKids Shared Theme — Buttons & Controls
+   ============================================ */
+
+:root {
+  --accent:    #4d9fff;
+  --yellow:    #f9a825;
+  --yellow-lt: rgba(249,168,37,0.12);
+  --yellow-bd: rgba(249,168,37,0.3);
+  --yellow-glow: rgba(249,168,37,0.25);
+  --red:       #e05252;
+  --red-lt:    rgba(224,82,82,0.12);
+  --green:     #4caf50;
+  --bg:        #0f1117;
+  --surface:   #1a1d27;
+  --surface2:  #222536;
+  --border:    #2e3248;
+  --text:      #e8eaf0;
+  --muted:     #6b7280;
+  --shadow:    0 2px 12px rgba(0,0,0,0.4);
+  --radius:    8px;
+  --radius-lg: 12px;
+}
+
+/* ---- BASE BUTTON ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  text-decoration: none;
+  line-height: 1.4;
+  letter-spacing: 0.1px;
+}
+.btn:hover {
+  color: var(--text);
+  border-color: #4a5270;
+  background: var(--surface2);
+}
+.btn:active { transform: translateY(1px); }
+
+/* ---- PRIMARY (yellow) ---- */
+.btn.primary, .btn-primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a1200;
+  font-weight: 700;
+  box-shadow: 0 2px 10px var(--yellow-glow);
+}
+.btn.primary:hover, .btn-primary:hover {
+  background: #e69100;
+  border-color: #e69100;
+  box-shadow: 0 4px 16px var(--yellow-glow);
+  transform: translateY(-1px);
+  color: #1a1200;
+}
+.btn.primary:active, .btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 6px var(--yellow-glow);
+}
+
+/* ---- DANGER (red) ---- */
+.btn.danger, .btn-danger {
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
+}
+.btn.danger:hover, .btn-danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+  background: var(--red-lt);
+}
+
+/* ---- GHOST (subtle) ---- */
+.btn.ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+.btn.ghost:hover {
+  background: var(--surface2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+/* ---- SMALL ---- */
+.btn.sm {
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* ---- ICON BUTTON ---- */
+.btn.icon {
+  padding: 7px;
+  border-radius: 6px;
+  min-width: 32px;
+  min-height: 32px;
+}
+
+/* ---- NAV BUTTON ---- */
+.nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.nav-btn:hover {
+  color: var(--text);
+  border-color: #4a5270;
+  background: var(--surface2);
+}
+.nav-btn.primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a1200;
+  font-weight: 700;
+  box-shadow: 0 2px 10px var(--yellow-glow);
+}
+.nav-btn.primary:hover {
+  background: #e69100;
+  border-color: #e69100;
+  box-shadow: 0 4px 16px var(--yellow-glow);
+  transform: translateY(-1px);
+  color: #1a1200;
+}
+.nav-btn.danger:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ---- FILTER BUTTON ---- */
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  transition: all 0.18s ease;
+}
+.filter-btn:hover {
+  border-color: var(--yellow-bd);
+  color: var(--yellow);
+  background: var(--yellow-lt);
+}
+.filter-btn.active {
+  border-color: var(--yellow);
+  color: var(--yellow);
+  background: var(--yellow-lt);
+  font-weight: 600;
+}
+
+/* ---- SELECT / INPUT ---- */
+.filter-select,
+select.filter-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.18s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 32px;
+}
+.filter-select:hover, .filter-select:focus {
+  border-color: var(--yellow);
+}
+
+/* ---- MODAL ACTIONS ---- */
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+.modal-actions button {
+  padding: 9px 20px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  transition: all 0.18s ease;
+}
+.modal-actions button:hover {
+  color: var(--text);
+  border-color: #4a5270;
+  background: var(--surface2);
+}
+.modal-actions button.primary {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: #1a1200;
+  font-weight: 700;
+  box-shadow: 0 2px 10px var(--yellow-glow);
+}
+.modal-actions button.primary:hover {
+  background: #e69100;
+  box-shadow: 0 4px 16px var(--yellow-glow);
+  transform: translateY(-1px);
+}
+
+/* ---- FORM ACTIONS ---- */
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
