@@ -226,7 +226,7 @@ def lambda_handler(event, context):
         })
         return resp(200, {'message': 'Class created', 'id': class_id})
 
-    if method == 'PUT' and path.startswith('/prod/admin/classes/') and not '/members' in path:
+    if method == 'PUT' and path.startswith('/prod/admin/classes/') and not '/members' in path and not path.endswith('/schedule') and not '/attendance/' in path and not path.endswith('/hw-status'):
         if get_role(event) != 'admin':
             return resp(403, {'error': 'Forbidden'})
         class_id = path.split('/')[-1]
@@ -550,8 +550,6 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    return resp(404, {'error': 'Not found'})
-
     # ==================== SCHEDULE ====================
 
     # GET /admin/classes/{id}/schedule
@@ -606,37 +604,30 @@ def lambda_handler(event, context):
 
     # ==================== HOMEWORK STATUS ====================
 
-    # GET /admin/classes/{id}/hw-status — get submission + marked status for all students in class
     if method == 'GET' and path.startswith('/prod/admin/classes/') and path.endswith('/hw-status'):
         if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
         class_id = path.split('/')[4]
         try:
-            # Get class members
             cls = table.get_item(Key={'pk': 'CLASS', 'sk': class_id}).get('Item', {})
             members = cls.get('members', [])
-            # Get all assignments for this class's course
             course_id = cls.get('courseId', '')
             assignments_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
             assignments = [a for a in assignments_result.get('Items', []) if a.get('courseId') == course_id]
-            # Get manual overrides
             overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
             overrides = overrides_result.get('Item', {}).get('data', {})
-            # Build status matrix
             status = {}
-            for username in members:
-                status[username] = {}
+            for uname in members:
+                status[uname] = {}
                 for a in assignments:
                     aid = a['sk']
-                    # Check actual submission
-                    sub = table.get_item(Key={'pk': f'SUBMISSION#{aid}', 'sk': username}).get('Item', {})
+                    sub = table.get_item(Key={'pk': f'SUBMISSION#{aid}', 'sk': uname}).get('Item', {})
                     submitted = sub.get('submitted', False)
-                    # Check marked file
-                    marked_key = f'{username}#{aid}'
+                    marked_key = f'{uname}#{aid}'
                     marked_data = overrides.get(marked_key, {})
-                    status[username][aid] = {
+                    status[uname][aid] = {
                         'title': a.get('title', ''),
-                        'submitted': overrides.get(f'{username}#{aid}#submitted', submitted),
+                        'submitted': overrides.get(f'{uname}#{aid}#submitted', submitted),
                         'markedFile': marked_data.get('markedFile', ''),
                         'markedFileName': marked_data.get('markedFileName', ''),
                         'marked': bool(marked_data.get('markedFile', ''))
@@ -645,24 +636,22 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # PUT /admin/classes/{id}/hw-status — manual override submission status
     if method == 'PUT' and path.startswith('/prod/admin/classes/') and path.endswith('/hw-status'):
         if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
         class_id = path.split('/')[4]
         body = json.loads(event.get('body') or '{}')
-        # body: { username, assignmentId, submitted?, markedFile?, markedFileName? }
-        username = body.get('username')
+        uname = body.get('username')
         aid = body.get('assignmentId')
-        if not username or not aid:
+        if not uname or not aid:
             return resp(400, {'error': 'Missing username or assignmentId'})
         overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
         overrides = overrides_result.get('Item', {}).get('data', {})
-        key = f'{username}#{aid}'
+        key = f'{uname}#{aid}'
         if key not in overrides:
             overrides[key] = {}
         if 'submitted' in body:
-            overrides[f'{username}#{aid}#submitted'] = body['submitted']
+            overrides[f'{uname}#{aid}#submitted'] = body['submitted']
         if 'markedFile' in body:
             overrides[key]['markedFile'] = body['markedFile']
             overrides[key]['markedFileName'] = body.get('markedFileName', '')
