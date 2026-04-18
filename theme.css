@@ -177,6 +177,44 @@
   font-weight: 600;
 }
 
+/* ---- DATE / TIME INPUTS ---- */
+input[type="date"],
+input[type="time"],
+input[type="number"] {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 9px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s;
+  color-scheme: dark;
+}
+input[type="date"]:hover,
+input[type="time"]:hover,
+input[type="number"]:hover {
+  border-color: #4a5270;
+}
+input[type="date"]:focus,
+input[type="time"]:focus,
+input[type="number"]:focus {
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(249,168,37,0.12);
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.6) sepia(1) saturate(3) hue-rotate(5deg);
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 /* ---- SELECT / INPUT ---- */
 .filter-select,
 select.filter-select,
