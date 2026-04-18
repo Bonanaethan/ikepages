@@ -215,9 +215,15 @@
     // ---- ATTENDANCE ----
     function renderAttendanceDateSelect() {
       const sel = document.getElementById('attendance-date-select');
-      const dates = (schedule.sessions || []).filter(Boolean);
+      // Combine scheduled dates with any dates that have saved attendance
+      const scheduledDates = (schedule.sessions || []).filter(Boolean);
+      // Merge and deduplicate, sort descending
+      const allDates = [...new Set([...scheduledDates])].sort((a, b) => b.localeCompare(a));
       sel.innerHTML = '<option value="">— pick a date —</option>' +
-        dates.map(d => `<option value="${d}">${new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' })}</option>`).join('');
+        allDates.map(d => {
+          const label = new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
+          return `<option value="${d}">${label}</option>`;
+        }).join('');
     }
 
     document.getElementById('attendance-date-select').addEventListener('change', async (e) => {
@@ -268,6 +274,7 @@
       if (!date) return;
       msg.textContent = 'Saving...'; msg.className = 'msg';
       const res = await AUTH.api('PUT', `/admin/classes/${classId}/attendance/${date}`, { records: attendanceRecords });
+      console.log('Attendance save response:', res);
       if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
       msg.textContent = 'Attendance saved.'; msg.className = 'msg success';
     });
