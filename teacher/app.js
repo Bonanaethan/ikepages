@@ -223,6 +223,7 @@ async function loadClasses() {
         </div>
         <div style="display:flex;gap:6px">
           <button class="btn" onclick="openEditClass('${cl.sk}')">Edit</button>
+          <button class="btn" onclick="window.location.href='class.html?id=${cl.sk}'">View</button>
           <button class="btn danger" onclick="deleteClass('${cl.sk}')">Delete</button>
         </div>
       </div>
