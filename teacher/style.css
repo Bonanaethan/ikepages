@@ -66,7 +66,6 @@ body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color
 .form-card input::placeholder, .form-card textarea::placeholder { color: #444; }
 .form-card textarea { resize: vertical; min-height: 80px; }
 .form-card select { cursor: pointer; }
-
 .msg { font-size: 13px; color: var(--muted); min-height: 18px; }
 .msg.error { color: var(--red); }
 .msg.success { color: var(--green); }
