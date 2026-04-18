@@ -78,6 +78,12 @@
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#6b7280;font-weight:600;margin-bottom:16px">Student Submissions</div>
         <div id="submissions-list"></div>
       </div>
+
+      <!-- Student: view marked homework -->
+      <div id="marked-view" style="display:none;background:#1a1d27;border:1px solid #2e3248;border-radius:12px;padding:24px;margin-top:32px">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#6b7280;font-weight:600;margin-bottom:12px">Marked Homework</div>
+        <div id="marked-content"><p style="color:#6b7280;font-size:13px">Not marked yet.</p></div>
+      </div>
     </div>
   </main>
 
@@ -400,8 +406,36 @@
           <div style="font-size:12px;color:#6b7280;margin-bottom:8px">${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'}) : 'Not submitted'}</div>
           ${s.note ? `<div style="font-size:13px;color:#9ca3af;margin-bottom:8px">${s.note}</div>` : ''}
           ${(s.files||[]).map(f => `<a href="${f.url}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1d27;border:1px solid #2e3248;border-radius:6px;padding:5px 12px;text-decoration:none;color:#f9a825;font-size:12px;margin-right:6px">📎 ${f.name}</a>`).join('')}
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid #2e3248">
+            <div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Upload Marked Homework</div>
+            <div id="marked-status-${s.sk}" style="margin-bottom:8px"></div>
+            <label style="display:inline-flex;align-items:center;gap:8px;background:#1a1d27;border:1px solid #2e3248;border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;color:#e8eaf0;transition:border-color 0.2s">
+              📎 Upload marked file
+              <input type="file" style="display:none" onchange="uploadMarkedFile(event,'${s.sk}')" />
+            </label>
+          </div>
         </div>`).join('');
+
+      // Load existing marked files for each student
+      res.forEach(async s => {
+        const markedRes = await AUTH.api('GET', `/marked/${id}/${s.sk}`);
+        const el = document.getElementById(`marked-status-${s.sk}`);
+        if (el && markedRes.markedFile) {
+          el.innerHTML = `<a href="${markedRes.markedFile}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1d27;border:1px solid #2e3248;border-radius:6px;padding:5px 12px;text-decoration:none;color:#f9a825;font-size:12px">📄 ${markedRes.markedFileName || 'Marked file'}</a>`;
+        }
+      });
     }
+
+    window.uploadMarkedFile = async (e, studentUsername) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const uploadRes = await AUTH.api('POST', '/upload-url', { filename: file.name, contentType: file.type });
+      if (uploadRes.error) { alert('Upload failed: ' + uploadRes.error); return; }
+      await fetch(uploadRes.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      await AUTH.api('PUT', `/marked/${id}/${studentUsername}`, { markedFile: uploadRes.publicUrl, markedFileName: file.name });
+      const el = document.getElementById(`marked-status-${studentUsername}`);
+      if (el) el.innerHTML = `<a href="${uploadRes.publicUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:#1a1d27;border:1px solid #2e3248;border-radius:6px;padding:5px 12px;text-decoration:none;color:#f9a825;font-size:12px">📄 ${file.name}</a>`;
+    };
 
     (async () => {
       const [assignments, doneMap] = await Promise.all([
@@ -447,6 +481,16 @@
         loadSubmissions();
       } else {
         loadExistingSubmission();
+        // Load marked homework for student
+        const markedRes = await AUTH.api('GET', `/marked/${id}/${AUTH.getUser()?.['cognito:username']}`);
+        const markedView = document.getElementById('marked-view');
+        const markedContent = document.getElementById('marked-content');
+        markedView.style.display = '';
+        if (markedRes.markedFile) {
+          markedContent.innerHTML = `<a href="${markedRes.markedFile}" target="_blank" style="display:inline-flex;align-items:center;gap:8px;background:#222536;border:1px solid #2e3248;border-radius:8px;padding:10px 16px;text-decoration:none;color:#f9a825;font-size:14px">📄 ${markedRes.markedFileName || 'View marked homework'}</a>`;
+        } else {
+          markedContent.innerHTML = '<p style="color:#6b7280;font-size:13px">Not marked yet.</p>';
+        }
       }
     })();
 

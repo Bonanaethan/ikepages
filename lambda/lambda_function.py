@@ -550,6 +550,75 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
+    # ==================== MARKED HOMEWORK ====================
+
+    # GET /marked/{assignmentId}/{username} — get marked file for a student (teacher sees any, student sees own)
+    if method == 'GET' and path.startswith('/prod/marked/'):
+        try:
+            parts = path.split('/')
+            assignment_id = parts[3]
+            target_username = parts[4] if len(parts) > 4 else get_username(event)
+            role = get_role(event)
+            current_user = get_username(event)
+            # Students can only see their own
+            if role == 'student' and target_username != current_user:
+                return resp(403, {'error': 'Forbidden'})
+            # Find the class for this student+assignment
+            classes_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            marked_file = ''
+            marked_file_name = ''
+            for cls in classes_result.get('Items', []):
+                if target_username in (cls.get('members') or []):
+                    class_id = cls['sk']
+                    overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
+                    overrides = overrides_result.get('Item', {}).get('data', {})
+                    key = f'{target_username}#{assignment_id}'
+                    marked_data = overrides.get(key, {})
+                    if marked_data.get('markedFile'):
+                        marked_file = marked_data['markedFile']
+                        marked_file_name = marked_data.get('markedFileName', 'Marked homework')
+                        break
+            return resp(200, {'markedFile': marked_file, 'markedFileName': marked_file_name})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # PUT /marked/{assignmentId}/{username} — upload marked file (teacher/admin only)
+    if method == 'PUT' and path.startswith('/prod/marked/'):
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        try:
+            parts = path.split('/')
+            assignment_id = parts[3]
+            target_username = parts[4]
+            body = json.loads(event.get('body') or '{}')
+            marked_file = body.get('markedFile', '')
+            marked_file_name = body.get('markedFileName', '')
+            # Find the student's class and save there
+            classes_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            saved = False
+            for cls in classes_result.get('Items', []):
+                if target_username in (cls.get('members') or []):
+                    class_id = cls['sk']
+                    overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
+                    overrides = overrides_result.get('Item', {}).get('data', {})
+                    key = f'{target_username}#{assignment_id}'
+                    if key not in overrides:
+                        overrides[key] = {}
+                    overrides[key]['markedFile'] = marked_file
+                    overrides[key]['markedFileName'] = marked_file_name
+                    table.put_item(Item={
+                        'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides',
+                        'data': overrides,
+                        'updatedAt': datetime.now(timezone.utc).isoformat()
+                    })
+                    saved = True
+                    break
+            if not saved:
+                return resp(404, {'error': 'Student not found in any class'})
+            return resp(200, {'message': 'Marked file saved'})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
     # ==================== SCHEDULE ====================
 
     # GET /admin/classes/{id}/schedule
