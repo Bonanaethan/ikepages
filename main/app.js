@@ -125,14 +125,17 @@ async function loadAnnouncements() {
   items.forEach(a => {
     const card = document.createElement('div');
     card.className = 'announcement-card';
+    const isHwMarked = a.type === 'hw_marked';
+    if (isHwMarked) card.style.borderLeftColor = '#4caf50';
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
+        <div style="flex:1">
           <div class="announcement-title">${a.title}</div>
           ${a.message ? `<div class="announcement-msg">${a.message}</div>` : ''}
+          ${isHwMarked && a.assignmentId ? `<a href="../homework/view.html?id=${a.assignmentId}" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(76,175,80,0.12);border:1px solid #4caf50;border-radius:6px;padding:5px 12px;text-decoration:none;color:#4caf50;font-size:12px;font-weight:600">📄 View marked homework →</a>` : ''}
           <div class="announcement-date">${new Date(a.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
         </div>
-        ${isTeacherOrAdmin ? `<button onclick="deleteAnnouncement('${a.sk}')" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0" title="Delete">×</button>` : ''}
+        ${isTeacherOrAdmin ? `<button onclick="deleteAnnouncement('${a.sk}')" style="background:none;border:none;color:#555;cursor:pointer;font-size:16px;padding:0;margin-left:12px" title="Delete">×</button>` : ''}
       </div>`;
     list.appendChild(card);
   });

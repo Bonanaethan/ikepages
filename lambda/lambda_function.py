@@ -620,6 +620,23 @@ def lambda_handler(event, context):
                     break
             if not saved:
                 return resp(404, {'error': 'Student not found in any class'})
+
+            # Get assignment title for notification
+            assignment = table.get_item(Key={'pk': 'ASSIGNMENT', 'sk': assignment_id}).get('Item', {})
+            assignment_title = assignment.get('title', 'your homework')
+
+            # Create notification announcement for the student
+            notif_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
+            table.put_item(Item={
+                'pk': 'ANNOUNCEMENT', 'sk': notif_id,
+                'title': f'✅ Homework marked: {assignment_title}',
+                'message': f'Your submission for "{assignment_title}" has been marked. Open the homework to view your marked file.',
+                'assignedTo': [target_username],
+                'type': 'hw_marked',
+                'assignmentId': assignment_id,
+                'createdAt': datetime.now(timezone.utc).isoformat()
+            })
+
             return resp(200, {'message': 'Marked file saved'})
         except Exception as e:
             return resp(500, {'error': str(e)})
