@@ -68,11 +68,11 @@
       <div class="section">
         <div class="section-label">Pages</div>
         <div class="quick-links">
-          <a href="../homework/index.html" class="quick-link">
+          <a href="../homework/index.html" class="quick-link" id="hw-link">
             <span class="quick-link-icon">📚</span>
             <span>Homework</span>
           </a>
-          <a href="../handout/index.html" class="quick-link">
+          <a href="../handout/index.html" class="quick-link" id="handout-link">
             <span class="quick-link-icon">📄</span>
             <span>Handouts</span>
           </a>
@@ -129,6 +129,11 @@
       document.getElementById('class-title').textContent = cls.name;
       document.getElementById('course-badge').textContent = course?.name || 'Class';
       document.getElementById('class-sub').textContent = course?.description || '';
+
+      // Set filtered links using courseId
+      const courseId = cls.courseId || '';
+      document.getElementById('hw-link').href = `../homework/index.html${courseId ? '?course=' + courseId : ''}`;
+      document.getElementById('handout-link').href = `../handout/index.html${courseId ? '?course=' + courseId : ''}`;
 
       // Schedule & Attendance
       const sessions = scheduleRes.sessions?.filter(Boolean) || [];

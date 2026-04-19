@@ -42,6 +42,12 @@ async function init() {
       filterSel.innerHTML = '<option value="all">All Courses</option>' +
         visibleCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
       filterSel.addEventListener('change', render);
+
+      // Auto-apply course filter from URL param
+      const urlCourse = new URLSearchParams(window.location.search).get('course');
+      if (urlCourse && visibleCourses.find(c => c.sk === urlCourse)) {
+        filterSel.value = urlCourse;
+      }
     }
   }
 

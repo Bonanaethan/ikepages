@@ -373,6 +373,12 @@ function escAttr(str) {
     document.getElementById('filter-bar').style.display = '';
     filter.innerHTML = '<option value="all">All Courses</option>' +
       allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+
+    // Auto-apply course filter from URL param
+    const urlCourse = new URLSearchParams(window.location.search).get('course');
+    if (urlCourse && allCourses.find(c => c.sk === urlCourse)) {
+      filter.value = urlCourse;
+    }
   }
 
   if (isTeacher) {
