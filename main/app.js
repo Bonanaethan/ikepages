@@ -274,7 +274,7 @@ if (AUTH.isTeacher() || AUTH.isAdmin()) {
       myClasses.forEach(cls => {
         const courseName = courses.find(c => c.sk === cls.courseId)?.name || '';
         const card = document.createElement('a');
-        card.href = `../homework/index.html?class=${cls.sk}`;
+        card.href = `../student/class.html?id=${cls.sk}`;
         card.style.cssText = 'display:inline-flex;flex-direction:column;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 18px;text-decoration:none;color:var(--text);transition:border-color 0.2s,background 0.2s;min-width:160px';
         card.innerHTML = `
           <span style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--yellow);font-weight:600">${courseName || 'Class'}</span>

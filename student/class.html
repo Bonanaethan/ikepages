@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Class</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="../auth.js"></script>
+  <script>AUTH.requireAuth();</script>
+  <link rel="stylesheet" href="../theme.css" />
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box; }
+    body { font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh; }
+    .navbar { display:flex;align-items:center;justify-content:space-between;padding:0 40px;height:64px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:0 1px 8px rgba(0,0,0,0.3); }
+    .nav-brand { font-size:15px;font-weight:600; }
+    .nav-right { display:flex;align-items:center;gap:12px;font-size:13px; }
+    .back-link { color:var(--muted);text-decoration:none;font-size:13px;transition:color 0.18s; }
+    .back-link:hover { color:var(--yellow); }
+    .content { max-width:860px;margin:0 auto;padding:40px 24px 80px; }
+    .section { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg,12px);padding:24px 28px;margin-bottom:20px;box-shadow:0 2px 12px rgba(0,0,0,0.3); }
+    .section-label { font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:600;margin-bottom:16px; }
+    .course-badge { display:inline-block;background:var(--yellow-lt);border:1px solid var(--yellow-bd);color:var(--yellow);border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;margin-bottom:8px; }
+    .class-title { font-size:26px;font-weight:700;margin-bottom:4px; }
+    .class-sub { font-size:14px;color:var(--muted); }
+    .quick-links { display:flex;flex-wrap:wrap;gap:12px; }
+    .quick-link { display:inline-flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px 20px;text-decoration:none;color:var(--text);font-size:14px;font-weight:500;transition:border-color 0.18s,background 0.18s; }
+    .quick-link:hover { border-color:var(--yellow);background:var(--yellow-lt);color:var(--yellow); }
+    .quick-link-icon { font-size:20px; }
+    .schedule-table { width:100%;border-collapse:collapse;font-size:13px; }
+    .schedule-table th { text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border); }
+    .schedule-table td { padding:10px 12px;border-bottom:1px solid var(--border); }
+    .schedule-table tr:last-child td { border-bottom:none; }
+    .schedule-table tr:hover td { background:var(--surface2); }
+    .session-past { color:var(--muted); }
+    .session-today { color:var(--yellow);font-weight:600; }
+    .session-future { color:var(--text); }
+    .attendance-badge { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600; }
+    .att-present { background:rgba(76,175,80,0.15);color:#4caf50; }
+    .att-absent { background:rgba(224,82,82,0.12);color:#e05252; }
+    .att-late { background:var(--yellow-lt);color:var(--yellow); }
+    .att-none { background:var(--surface2);color:var(--muted); }
+    .empty { color:var(--muted);font-size:13px; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <a href="../main/index.html" class="back-link">← Dashboard</a>
+    <span class="nav-brand" id="class-name">My Class</span>
+    <div class="nav-right"><span id="nav-username"></span></div>
+  </nav>
+
+  <main class="content">
+    <div id="loading" style="color:var(--muted);font-size:14px;text-align:center;padding:60px 0">Loading...</div>
+    <div id="page-content" style="display:none">
+
+      <!-- Class Header -->
+      <div class="section">
+        <div id="course-badge" class="course-badge"></div>
+        <div class="class-title" id="class-title"></div>
+        <div class="class-sub" id="class-sub"></div>
+      </div>
+
+      <!-- Quick Links -->
+      <div class="section">
+        <div class="section-label">Pages</div>
+        <div class="quick-links">
+          <a href="../homework/index.html" class="quick-link">
+            <span class="quick-link-icon">📚</span>
+            <span>Homework</span>
+          </a>
+          <a href="../handout/index.html" class="quick-link">
+            <span class="quick-link-icon">📄</span>
+            <span>Handouts</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- Schedule & Attendance -->
+      <div class="section">
+        <div class="section-label">Schedule & Attendance</div>
+        <div id="schedule-content"><p class="empty">No schedule set for this class.</p></div>
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const classId = new URLSearchParams(window.location.search).get('id');
+    if (!classId) window.location.href = '../main/index.html';
+
+    const username = AUTH.getUser()?.['cognito:username'] || '';
+    document.getElementById('nav-username').textContent = username;
+
+    function fmt(dateStr) {
+      return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
+    }
+
+    function fmtTime(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hour = parseInt(h);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const h12 = hour % 12 || 12;
+      return `${h12}:${m} ${ampm}`;
+    }
+
+    (async () => {
+      const [classesRes, coursesRes, scheduleRes] = await Promise.all([
+        AUTH.api('GET', '/my/classes'),
+        AUTH.api('GET', '/admin/courses'),
+        AUTH.api('GET', `/admin/classes/${classId}/schedule`)
+      ]);
+
+      const classes = Array.isArray(classesRes) ? classesRes : [];
+      const courses = Array.isArray(coursesRes) ? coursesRes : [];
+      const cls = classes.find(c => c.sk === classId);
+
+      if (!cls) {
+        document.getElementById('loading').textContent = 'Class not found.';
+        return;
+      }
+
+      const course = courses.find(c => c.sk === cls.courseId);
+      document.getElementById('class-name').textContent = cls.name;
+      document.getElementById('class-title').textContent = cls.name;
+      document.getElementById('course-badge').textContent = course?.name || 'Class';
+      document.getElementById('class-sub').textContent = course?.description || '';
+
+      // Schedule & Attendance
+      const sessions = scheduleRes.sessions?.filter(Boolean) || [];
+      const startTime = scheduleRes.startTime || '';
+      const endTime = scheduleRes.endTime || '';
+      const today = new Date().toISOString().split('T')[0];
+
+      if (sessions.length) {
+        // Load attendance for all past/today sessions
+        const attendancePromises = sessions
+          .filter(d => d <= today)
+          .map(d => AUTH.api('GET', `/admin/classes/${classId}/attendance/${d}`).then(r => ({ date: d, records: r.records || {} })));
+        const attendanceData = await Promise.all(attendancePromises);
+        const attMap = {};
+        attendanceData.forEach(a => { attMap[a.date] = a.records; });
+
+        const timeStr = startTime ? `${fmtTime(startTime)}${endTime ? ' – ' + fmtTime(endTime) : ''}` : '';
+
+        let html = `
+          ${timeStr ? `<p style="font-size:13px;color:var(--muted);margin-bottom:16px">⏰ ${timeStr} per session</p>` : ''}
+          <table class="schedule-table">
+            <thead><tr><th>#</th><th>Date</th><th>Attendance</th></tr></thead>
+            <tbody>`;
+
+        sessions.forEach((date, i) => {
+          const isPast = date < today;
+          const isToday = date === today;
+          const cls2 = isToday ? 'session-today' : isPast ? 'session-past' : 'session-future';
+          const att = attMap[date]?.[username];
+          let attBadge = '<span class="attendance-badge att-none">—</span>';
+          if (att === 'present') attBadge = '<span class="attendance-badge att-present">✓ Present</span>';
+          else if (att === 'absent') attBadge = '<span class="attendance-badge att-absent">✗ Absent</span>';
+          else if (att === 'late') attBadge = '<span class="attendance-badge att-late">⏱ Late</span>';
+          else if (isPast) attBadge = '<span class="attendance-badge att-none">Not recorded</span>';
+
+          html += `<tr>
+            <td class="${cls2}" style="font-weight:500">${i + 1}</td>
+            <td class="${cls2}">${fmt(date)}${isToday ? ' <span style="font-size:11px;background:var(--yellow-lt);color:var(--yellow);border-radius:4px;padding:2px 6px;margin-left:6px">Today</span>' : ''}</td>
+            <td>${isPast || isToday ? attBadge : '<span style="color:var(--muted);font-size:12px">Upcoming</span>'}</td>
+          </tr>`;
+        });
+
+        html += '</tbody></table>';
+        document.getElementById('schedule-content').innerHTML = html;
+      }
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('page-content').style.display = '';
+    })();
+  </script>
+</body>
+</html>
