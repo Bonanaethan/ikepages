@@ -97,6 +97,7 @@
                 <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">#</th>
                 <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Date</th>
                 <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Time</th>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)"></th>
               </tr>
             </thead>
             <tbody id="saved-schedule-tbody"></tbody>
@@ -230,7 +231,7 @@
     });
 
     function renderSavedScheduleTable() {
-      const sessions = (schedule.sessions || []).filter(Boolean);
+      const sessions = schedule.sessions || [];
       if (!sessions.length) return;
       const tbody = document.getElementById('saved-schedule-tbody');
       const tableWrap = document.getElementById('saved-schedule-table');
@@ -239,14 +240,39 @@
       const timeStr = startTime
         ? `${fmtTime(startTime)}${endTime ? ' – ' + fmtTime(endTime) : ''}`
         : '—';
-      tbody.innerHTML = sessions.map((date, i) => `
-        <tr>
+      const today = new Date().toISOString().split('T')[0];
+      tbody.innerHTML = sessions.map((date, i) => {
+        const isPast = date && date < today;
+        const isToday = date === today;
+        const rowStyle = isPast ? 'opacity:0.4' : '';
+        const dateLabel = date ? fmtDate(date) : '<span style="color:var(--muted)">Not set</span>';
+        const todayBadge = isToday ? ' <span style="font-size:10px;background:var(--yellow-lt);color:var(--yellow);border-radius:4px;padding:2px 6px;margin-left:6px">Today</span>' : '';
+        return `<tr style="${rowStyle}">
           <td style="padding:10px 12px;border-bottom:1px solid var(--border);font-weight:500">${i + 1}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid var(--border)">${fmtDate(date)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border)">${dateLabel}${todayBadge}</td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--muted)">${timeStr}</td>
-        </tr>`).join('');
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border)">
+            <button class="btn sm ghost" onclick="editSession(${i})" style="font-size:11px;padding:4px 10px">Edit</button>
+          </td>
+        </tr>`;
+      }).join('');
       tableWrap.style.display = '';
     }
+
+    window.editSession = (idx) => {
+      // Scroll to the sessions list and highlight the row
+      document.getElementById('sessions-list').scrollIntoView({ behavior: 'smooth' });
+      const inputs = document.querySelectorAll('.session-date-input');
+      if (inputs[idx]) {
+        inputs[idx].focus();
+        inputs[idx].style.borderColor = 'var(--yellow)';
+        inputs[idx].style.boxShadow = '0 0 0 3px rgba(249,168,37,0.2)';
+        setTimeout(() => {
+          inputs[idx].style.borderColor = '';
+          inputs[idx].style.boxShadow = '';
+        }, 2000);
+      }
+    };
 
     function fmtDate(d) {
       return new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
