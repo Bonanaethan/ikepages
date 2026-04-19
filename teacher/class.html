@@ -87,6 +87,21 @@
 
         <div id="sessions-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:24px"></div>
         <p id="schedule-msg" class="msg"></p>
+
+        <!-- Saved schedule table -->
+        <div id="saved-schedule-table" style="display:none;margin-top:24px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--muted);font-weight:600;margin-bottom:12px">Saved Schedule</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">#</th>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Date</th>
+                <th style="text-align:left;padding:8px 12px;font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border)">Time</th>
+              </tr>
+            </thead>
+            <tbody id="saved-schedule-tbody"></tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ATTENDANCE TAB -->
@@ -164,6 +179,7 @@
         document.getElementById('start-time').value = schedule.startTime || '';
         document.getElementById('end-time').value = schedule.endTime || '';
         renderSessionsList();
+        renderSavedScheduleTable();
       }
 
       document.getElementById('loading').style.display = 'none';
@@ -209,8 +225,40 @@
       const res = await AUTH.api('PUT', `/admin/classes/${classId}/schedule`, schedule);
       if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
       msg.textContent = 'Schedule saved.'; msg.className = 'msg success';
+      renderSavedScheduleTable();
       renderAttendanceDateSelect();
     });
+
+    function renderSavedScheduleTable() {
+      const sessions = (schedule.sessions || []).filter(Boolean);
+      if (!sessions.length) return;
+      const tbody = document.getElementById('saved-schedule-tbody');
+      const tableWrap = document.getElementById('saved-schedule-table');
+      const startTime = schedule.startTime || '';
+      const endTime = schedule.endTime || '';
+      const timeStr = startTime
+        ? `${fmtTime(startTime)}${endTime ? ' – ' + fmtTime(endTime) : ''}`
+        : '—';
+      tbody.innerHTML = sessions.map((date, i) => `
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border);font-weight:500">${i + 1}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border)">${fmtDate(date)}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--border);color:var(--muted)">${timeStr}</td>
+        </tr>`).join('');
+      tableWrap.style.display = '';
+    }
+
+    function fmtDate(d) {
+      return new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
+    }
+
+    function fmtTime(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':');
+      const hour = parseInt(h);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      return `${hour % 12 || 12}:${m} ${ampm}`;
+    }
 
     // ---- ATTENDANCE ----
     function renderAttendanceDateSelect() {

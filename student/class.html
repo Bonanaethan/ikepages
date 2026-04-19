@@ -41,6 +41,8 @@
     .att-absent { background:rgba(224,82,82,0.12);color:#e05252; }
     .att-late { background:var(--yellow-lt);color:var(--yellow); }
     .att-none { background:var(--surface2);color:var(--muted); }
+    .attendance-btn { padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all 0.15s; }
+    .attendance-btn:hover { border-color:var(--yellow);color:var(--yellow); }
     .empty { color:var(--muted);font-size:13px; }
   </style>
 </head>
@@ -156,16 +158,29 @@
           const isToday = date === today;
           const cls2 = isToday ? 'session-today' : isPast ? 'session-past' : 'session-future';
           const att = attMap[date]?.[username];
-          let attBadge = '<span class="attendance-badge att-none">—</span>';
-          if (att === 'present') attBadge = '<span class="attendance-badge att-present">✓ Present</span>';
-          else if (att === 'absent') attBadge = '<span class="attendance-badge att-absent">✗ Absent</span>';
-          else if (att === 'late') attBadge = '<span class="attendance-badge att-late">⏱ Late</span>';
-          else if (isPast) attBadge = '<span class="attendance-badge att-none">Not recorded</span>';
+          let attCell = '';
+          if (isPast || isToday) {
+            const statuses = ['present', 'absent', 'late'];
+            const labels = { present: '✓ Present', absent: '✗ Absent', late: '⏱ Late' };
+            const classes = { present: 'att-present', absent: 'att-absent', late: 'att-late' };
+            if (att) {
+              attCell = `<div style="display:flex;align-items:center;gap:8px">
+                <span class="attendance-badge ${classes[att]}">${labels[att]}</span>
+                <button onclick="editAtt('${date}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;transition:color 0.15s" onmouseover="this.style.color='var(--yellow)'" onmouseout="this.style.color='var(--muted)'">Edit</button>
+              </div>`;
+            } else {
+              attCell = `<div style="display:flex;gap:6px" id="att-btns-${date}">
+                ${statuses.map(s => `<button class="attendance-btn" onclick="setAtt('${date}','${s}')">${labels[s]}</button>`).join('')}
+              </div>`;
+            }
+          } else {
+            attCell = '<span style="color:var(--muted);font-size:12px">Upcoming</span>';
+          }
 
           html += `<tr>
             <td class="${cls2}" style="font-weight:500">${i + 1}</td>
             <td class="${cls2}">${fmt(date)}${isToday ? ' <span style="font-size:11px;background:var(--yellow-lt);color:var(--yellow);border-radius:4px;padding:2px 6px;margin-left:6px">Today</span>' : ''}</td>
-            <td>${isPast || isToday ? attBadge : '<span style="color:var(--muted);font-size:12px">Upcoming</span>'}</td>
+            <td>${isPast || isToday ? attCell : '<span style="color:var(--muted);font-size:12px">Upcoming</span>'}</td>
           </tr>`;
         });
 
@@ -176,6 +191,22 @@
       document.getElementById('loading').style.display = 'none';
       document.getElementById('page-content').style.display = '';
     })();
+
+    window.setAtt = async (date, status) => {
+      await AUTH.api('PUT', `/admin/classes/${classId}/attendance/${date}`, { status });
+      // Reload page to reflect change
+      window.location.reload();
+    };
+
+    window.editAtt = (date) => {
+      const labels = { present: '✓ Present', absent: '✗ Absent', late: '⏱ Late' };
+      const statuses = ['present', 'absent', 'late'];
+      const cell = document.querySelector(`[onclick="editAtt('${date}')"]`)?.parentElement;
+      if (!cell) return;
+      cell.innerHTML = `<div style="display:flex;gap:6px">
+        ${statuses.map(s => `<button class="attendance-btn" onclick="setAtt('${date}','${s}')">${labels[s]}</button>`).join('')}
+      </div>`;
+    };
   </script>
 </body>
 </html>
