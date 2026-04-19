@@ -374,29 +374,44 @@
       let html = `<div style="overflow-x:auto"><table>
         <thead><tr>
           <th>Student</th>
-          ${assignments.map(a => `<th style="min-width:160px">${a.title}</th>`).join('')}
+          ${assignments.map(a => `<th style="min-width:220px">${a.title}</th>`).join('')}
         </tr></thead>
         <tbody>`;
 
       members.forEach(m => {
-        html += `<tr><td style="font-weight:500;white-space:nowrap">${m}</td>`;
+        html += `<tr><td style="font-weight:500;white-space:nowrap;vertical-align:top;padding-top:14px">${m}</td>`;
         assignments.forEach(a => {
           const s = (status[m] || {})[a.sk] || {};
           const submitted = s.submitted;
           const markedFile = s.markedFile || '';
           const markedFileName = s.markedFileName || 'Marked';
-          html += `<td>
-            <div style="display:flex;flex-direction:column;gap:6px">
+          const submittedFiles = s.submittedFiles || [];
+
+          html += `<td style="vertical-align:top">
+            <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+
+              <!-- Submission status -->
               <div style="display:flex;align-items:center;gap:8px">
                 <span class="status-badge ${submitted ? 'badge-green' : 'badge-muted'}">${submitted ? '✓ Submitted' : '— Not submitted'}</span>
-                <button class="btn sm ghost" onclick="toggleSubmitted('${m}','${a.sk}',${!submitted})" title="Toggle">✎</button>
+                <button class="btn sm ghost" onclick="toggleSubmitted('${m}','${a.sk}',${!submitted})" title="Toggle manually">✎</button>
               </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                ${markedFile
-                  ? `<a href="${markedFile}" target="_blank" class="upload-link">📄 ${markedFileName}</a>`
-                  : `<span class="status-badge badge-muted">Not marked</span>`}
-                <label style="cursor:pointer;font-size:11px;color:var(--yellow)">
-                  Upload
+
+              <!-- Student submitted files -->
+              <div id="sub-files-${m}-${a.sk}">
+                <span style="font-size:11px;color:var(--muted)">Loading...</span>
+              </div>
+
+              <!-- Marked file -->
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Marked:</div>
+                <div id="marked-file-${m}-${a.sk}" style="margin-bottom:6px">
+                  ${markedFile
+                    ? `<a href="${markedFile}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 10px;text-decoration:none;color:#4caf50;font-size:12px">📄 ${markedFileName} ↓</a>`
+                    : `<span style="font-size:12px;color:var(--muted)">Not uploaded</span>`}
+                </div>
+                <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;color:var(--text);transition:border-color 0.15s"
+                  onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)'">
+                  📤 Upload marked
                   <input type="file" style="display:none" onchange="uploadMarked(event,'${m}','${a.sk}')" />
                 </label>
               </div>
@@ -408,6 +423,33 @@
 
       html += '</tbody></table></div>';
       wrap.innerHTML = html;
+
+      // Load submitted files for each student+assignment
+      members.forEach(m => {
+        assignments.forEach(async a => {
+          const el = document.getElementById(`sub-files-${m}-${a.sk}`);
+          if (!el) return;
+          try {
+            const sub = await AUTH.api('GET', `/submissions/${a.sk}`);
+            const studentSub = Array.isArray(sub) ? sub.find(s => s.sk === m) : null;
+            if (studentSub && (studentSub.files||[]).length) {
+              el.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Submitted files:</div>` +
+                studentSub.files.map(f =>
+                  `<a href="${f.url}" target="_blank" download="${f.name}"
+                    style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;text-decoration:none;color:var(--text);font-size:12px;margin-right:4px;margin-bottom:4px;transition:border-color 0.15s"
+                    onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)'">
+                    📎 ${f.name} <span style="color:var(--muted);font-size:10px">↓</span>
+                  </a>`
+                ).join('');
+              if (studentSub.note) {
+                el.innerHTML += `<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">"${studentSub.note}"</div>`;
+              }
+            } else {
+              el.innerHTML = '<span style="font-size:12px;color:var(--muted)">No files submitted</span>';
+            }
+          } catch { el.innerHTML = ''; }
+        });
+      });
     }
 
     window.toggleSubmitted = async (username, assignmentId, newVal) => {
@@ -426,7 +468,8 @@
         markedFile: uploadRes.publicUrl,
         markedFileName: file.name
       });
-      loadHwStatus();
+      const el = document.getElementById(`marked-file-${username}-${assignmentId}`);
+      if (el) el.innerHTML = `<a href="${uploadRes.publicUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 10px;text-decoration:none;color:#4caf50;font-size:12px">📄 ${file.name} ↓</a>`;
     };
   </script>
 </body>
