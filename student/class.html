@@ -111,7 +111,7 @@
     (async () => {
       const [classesRes, coursesRes, scheduleRes] = await Promise.all([
         AUTH.api('GET', '/my/classes'),
-        AUTH.api('GET', '/admin/courses'),
+        AUTH.api('GET', '/courses'),
         AUTH.api('GET', `/admin/classes/${classId}/schedule`)
       ]);
 

@@ -357,7 +357,7 @@ function escAttr(str) {
 // ---- INIT ----
 (async () => {
   // Load courses for everyone so filter shows course names
-  const res = await AUTH.api('GET', '/admin/courses');
+  const res = await AUTH.api('GET', '/courses');
   allCourses = Array.isArray(res) ? res : [];
 
   const filter = document.getElementById('course-filter');

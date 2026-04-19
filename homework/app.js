@@ -21,7 +21,7 @@ function escAttr(str) { return String(str).replace(/"/g,'&quot;'); }
 // ---- LOAD DATA ----
 async function init() {
   // Load courses for everyone (for filter)
-  const coursesRes = await AUTH.api('GET', '/admin/courses');
+  const coursesRes = await AUTH.api('GET', '/courses');
   allCourses = Array.isArray(coursesRes) ? coursesRes : [];
 
   if (allCourses.length) {

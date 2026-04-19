@@ -171,6 +171,11 @@ def lambda_handler(event, context):
         result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
         return resp(200, result.get('Items', []))
 
+    # GET /courses — public course list for all authenticated users
+    if method == 'GET' and path == '/prod/courses':
+        result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
+        return resp(200, result.get('Items', []))
+
     if method == 'POST' and path == '/prod/admin/courses':
         if get_role(event) != 'admin':
             return resp(403, {'error': 'Forbidden'})
