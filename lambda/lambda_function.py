@@ -645,9 +645,15 @@ def lambda_handler(event, context):
 
     # GET /admin/classes/{id}/schedule
     if method == 'GET' and path.startswith('/prod/admin/classes/') and path.endswith('/schedule'):
-        if get_role(event) not in ('admin', 'teacher'):
+        if get_role(event) not in ('admin', 'teacher', 'student'):
             return resp(403, {'error': 'Forbidden'})
         class_id = path.split('/')[4]
+        # Students can only read schedules for classes they belong to
+        if get_role(event) == 'student':
+            username = get_username(event)
+            cls = table.get_item(Key={'pk': 'CLASS', 'sk': class_id}).get('Item', {})
+            if username not in (cls.get('members') or []):
+                return resp(403, {'error': 'Forbidden'})
         result = table.get_item(Key={'pk': f'SCHEDULE#{class_id}', 'sk': 'schedule'})
         return resp(200, result.get('Item', {}))
 
@@ -670,11 +676,17 @@ def lambda_handler(event, context):
 
     # GET /admin/classes/{id}/attendance/{date}
     if method == 'GET' and path.startswith('/prod/admin/classes/') and '/attendance/' in path:
-        if get_role(event) not in ('admin', 'teacher'):
+        if get_role(event) not in ('admin', 'teacher', 'student'):
             return resp(403, {'error': 'Forbidden'})
         parts = path.split('/')
         class_id = parts[4]
         date = parts[6]
+        # Students can only read attendance for classes they belong to
+        if get_role(event) == 'student':
+            username = get_username(event)
+            cls = table.get_item(Key={'pk': 'CLASS', 'sk': class_id}).get('Item', {})
+            if username not in (cls.get('members') or []):
+                return resp(403, {'error': 'Forbidden'})
         result = table.get_item(Key={'pk': f'ATTENDANCE#{class_id}', 'sk': date})
         return resp(200, result.get('Item', {'records': {}}))
 
