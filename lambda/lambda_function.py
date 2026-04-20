@@ -693,27 +693,8 @@ def lambda_handler(event, context):
     # PUT /admin/classes/{id}/attendance/{date}
     if method == 'PUT' and path.startswith('/prod/admin/classes/') and '/attendance/' in path:
         role = get_role(event)
-        if role not in ('admin', 'teacher', 'student'):
+        if role not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
-        parts = path.split('/')
-        class_id = parts[4]
-        date = parts[6]
-        body = json.loads(event.get('body') or '{}')
-        # Students can only update their own record
-        if role == 'student':
-            username = get_username(event)
-            new_status = body.get('status')
-            if not new_status:
-                return resp(400, {'error': 'Missing status'})
-            existing = table.get_item(Key={'pk': f'ATTENDANCE#{class_id}', 'sk': date}).get('Item', {})
-            records = existing.get('records', {})
-            records[username] = new_status
-            table.put_item(Item={
-                'pk': f'ATTENDANCE#{class_id}', 'sk': date,
-                'records': records,
-                'updatedAt': datetime.now(timezone.utc).isoformat()
-            })
-            return resp(200, {'message': 'Attendance updated'})
         # Teachers/admins update full records
         table.put_item(Item={
             'pk': f'ATTENDANCE#{class_id}', 'sk': date,

@@ -165,18 +165,13 @@
           const att = attMap[date]?.[username];
           let attCell = '';
           if (isPast || isToday) {
-            const statuses = ['present', 'absent', 'late'];
+            const att = attMap[date]?.[username];
             const labels = { present: '✓ Present', absent: '✗ Absent', late: '⏱ Late' };
             const classes = { present: 'att-present', absent: 'att-absent', late: 'att-late' };
             if (att) {
-              attCell = `<div style="display:flex;align-items:center;gap:8px">
-                <span class="attendance-badge ${classes[att]}">${labels[att]}</span>
-                <button onclick="editAtt('${date}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:0;transition:color 0.15s" onmouseover="this.style.color='var(--yellow)'" onmouseout="this.style.color='var(--muted)'">Edit</button>
-              </div>`;
+              attCell = `<span class="attendance-badge ${classes[att]}">${labels[att]}</span>`;
             } else {
-              attCell = `<div style="display:flex;gap:6px" id="att-btns-${date}">
-                ${statuses.map(s => `<button class="attendance-btn" onclick="setAtt('${date}','${s}')">${labels[s]}</button>`).join('')}
-              </div>`;
+              attCell = `<span class="attendance-badge att-none">Not recorded</span>`;
             }
           } else {
             attCell = '<span style="color:var(--muted);font-size:12px">Upcoming</span>';
@@ -197,21 +192,8 @@
       document.getElementById('page-content').style.display = '';
     })();
 
-    window.setAtt = async (date, status) => {
-      await AUTH.api('PUT', `/admin/classes/${classId}/attendance/${date}`, { status });
-      // Reload page to reflect change
-      window.location.reload();
-    };
-
-    window.editAtt = (date) => {
-      const labels = { present: '✓ Present', absent: '✗ Absent', late: '⏱ Late' };
-      const statuses = ['present', 'absent', 'late'];
-      const cell = document.querySelector(`[onclick="editAtt('${date}')"]`)?.parentElement;
-      if (!cell) return;
-      cell.innerHTML = `<div style="display:flex;gap:6px">
-        ${statuses.map(s => `<button class="attendance-btn" onclick="setAtt('${date}','${s}')">${labels[s]}</button>`).join('')}
-      </div>`;
-    };
+    window.setAtt = async (date, status) => {};
+    window.editAtt = (date) => {};
   </script>
 </body>
 </html>
