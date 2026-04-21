@@ -131,7 +131,7 @@ async function loadAnnouncements() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1">
           <div class="announcement-title">${a.title}</div>
-          ${a.message ? `<div class="announcement-msg">${a.message}</div>` : ''}
+          ${a.message ? `<div class="announcement-msg" style="white-space:pre-wrap">${a.message}</div>` : ''}
           ${isHwMarked && a.assignmentId ? `<a href="../homework/view.html?id=${a.assignmentId}" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:rgba(76,175,80,0.12);border:1px solid #4caf50;border-radius:6px;padding:5px 12px;text-decoration:none;color:#4caf50;font-size:12px;font-weight:600">📄 View marked homework →</a>` : ''}
           <div class="announcement-date">${new Date(a.createdAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
         </div>

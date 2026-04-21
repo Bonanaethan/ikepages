@@ -313,14 +313,9 @@ def lambda_handler(event, context):
             role = get_role(event)
             if role in ('teacher', 'admin'):
                 return resp(200, items)
-            # Students see assignments whose courseId matches their enrolled courses
+            # Students only see assignments from their enrolled courses
             student_course_ids = get_student_course_ids(table, username)
-            visible = [a for a in items if
-                not a.get('courseId') or
-                a.get('courseId') in student_course_ids or
-                a.get('assignedTo') == 'all' or
-                username in (a.get('assignedTo') or [])
-            ]
+            visible = [a for a in items if a.get('courseId') in student_course_ids]
             return resp(200, visible)
         except Exception as e:
             return resp(500, {'error': str(e)})
@@ -388,6 +383,19 @@ def lambda_handler(event, context):
                 'savedAt': datetime.now(timezone.utc).isoformat()
             })
             return resp(200, {'message': 'Cancelled' if body.get('cancel') else ('Submitted' if submitted else 'Saved')})
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
+    # DELETE /submissions/{assignmentId}/{username} — teacher returns homework to student
+    if method == 'DELETE' and path.startswith('/prod/submissions/') and len(path.split('/')) == 5:
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        parts = path.split('/')
+        assignment_id = parts[3]
+        target_username = parts[4]
+        try:
+            table.delete_item(Key={'pk': f'SUBMISSION#{assignment_id}', 'sk': target_username})
+            return resp(200, {'message': 'Homework returned to student'})
         except Exception as e:
             return resp(500, {'error': str(e)})
 

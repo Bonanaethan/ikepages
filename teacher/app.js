@@ -307,7 +307,7 @@ async function loadAnnouncements() {
       <div style="display:flex;justify-content:space-between;align-items:flex-start;width:100%">
         <div class="item-card-info">
           <div class="item-card-title">${a.title}</div>
-          ${a.message ? `<div class="item-card-sub">${a.message}</div>` : ''}
+          ${a.message ? `<div class="item-card-sub" style="white-space:pre-wrap">${a.message}</div>` : ''}
           <div class="item-card-sub">→ ${assigned}</div>
         </div>
         <div style="display:flex;gap:6px">

@@ -5,6 +5,7 @@ if (isTeacher) document.getElementById('add-hw-btn').classList.remove('hidden');
 
 let allAssignments = [];
 let doneMap = {};
+let submissionMap = {};
 let allCourses = [];
 let blocks = [];
 let editingId = null;
@@ -64,6 +65,14 @@ async function init() {
   ]);
   allAssignments = Array.isArray(assignments) ? assignments : [];
   doneMap = done || {};
+
+  // Load submission status for students
+  if (!isTeacher) {
+    const submissionsRes = await Promise.all(
+      allAssignments.map(a => AUTH.api('GET', `/submissions/${a.sk}`).then(r => ({ id: a.sk, data: r })))
+    );
+    submissionsRes.forEach(s => { submissionMap[s.id] = s.data; });
+  }
   render();
 }
 
@@ -126,8 +135,10 @@ function render() {
 }
 
 function renderHwCard(hw, list) {
-    const done = !!doneMap[hw.sk];
-    const overdue = hw.dueDate && !done && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+    const submitted = !!(submissionMap && submissionMap[hw.sk]?.submitted);
+    const overdue = hw.dueDate && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+    const done = submitted || overdue;
+    const checkReadonly = submitted || overdue || hw.builtin;
     const dueText = hw.dueDate
       ? `Due ${new Date(hw.dueDate + 'T00:00:00').toLocaleDateString('en-CA', { month: 'short', day: 'numeric', year: 'numeric' })}`
       : 'No due date';
@@ -136,7 +147,7 @@ function renderHwCard(hw, list) {
     const card = document.createElement('div');
     card.className = 'hw-card' + (done ? ' done' : '');
     card.innerHTML = `
-      <div class="hw-check ${done ? 'checked' : ''}" data-id="${hw.sk}" title="Mark complete"></div>
+      <div class="hw-check ${done ? 'checked' : ''} ${checkReadonly ? 'readonly' : ''}" data-id="${hw.sk}" title="${checkReadonly ? '' : 'Mark complete'}" style="${checkReadonly ? 'cursor:default;pointer-events:none;opacity:0.5' : ''}"></div>
       <div class="hw-card-body">
         <div class="hw-card-subject">${escHtml(hw.subject || courseName || 'General')}</div>
         <div class="hw-card-title">${escHtml(hw.title)}</div>
@@ -168,6 +179,11 @@ function renderHwCard(hw, list) {
 }
 
 async function toggleDone(id) {
+  // Only allow marking done if not submitted and not past due
+  const hw = allAssignments.find(a => a.sk === id);
+  if (!hw) return;
+  const isOverdue = hw.dueDate && new Date(hw.dueDate) < new Date().setHours(0,0,0,0);
+  if (isOverdue) return; // past due, not clickable
   doneMap[id] = !doneMap[id];
   render();
   await AUTH.api('POST', `/assignments/${id}/done`, { done: doneMap[id] });
