@@ -32,8 +32,7 @@ async function init() {
       // Get student's own classes, then find their course IDs
       const classesRes = await AUTH.api('GET', '/my/classes');
       const allClassesList = Array.isArray(classesRes) ? classesRes : [];
-      const studentClasses = allClassesList.filter(c => (c.members || []).includes(username));
-      const studentCourseIds = new Set(studentClasses.map(c => c.courseId).filter(Boolean));
+      const studentCourseIds = new Set(allClassesList.map(c => c.courseId).filter(Boolean));
       visibleCourses = allCourses.filter(c => studentCourseIds.has(c.sk));
     }
     if (visibleCourses.length) {

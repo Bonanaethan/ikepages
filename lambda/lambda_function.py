@@ -34,7 +34,7 @@ def get_role(event):
         if 'students' in groups_list: return 'student'
         return None
     except:
-        return NoneI 
+        return None
 
 def get_username(event):
     try:
@@ -103,13 +103,14 @@ def lambda_handler(event, context):
             return resp(500, {'error': str(e)})
 
     if method == 'PUT' and path.startswith('/prod/admin/users/'):
-        if get_role(event) != 'admin':
+        if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
         target_username = path.split('/')[-1]
         body = json.loads(event.get('body') or '{}')
         try:
             new_group = body.get('group')
-            if new_group:
+            # Only admins can change groups
+            if new_group and get_role(event) == 'admin':
                 groups_res = cognito.admin_list_groups_for_user(UserPoolId=USER_POOL_ID, Username=target_username)
                 for g in groups_res['Groups']:
                     cognito.admin_remove_user_from_group(UserPoolId=USER_POOL_ID, Username=target_username, GroupName=g['GroupName'])
@@ -399,7 +400,7 @@ def lambda_handler(event, context):
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    if method == 'GET' and path.startswith('/prod/submissions/'):
+    if method == 'GET' and path.startswith('/prod/submissions/') and len(path.split('/')) == 4:
         try:
             username = get_username(event)
             assignment_id = path.split('/')[-1]
@@ -703,6 +704,10 @@ def lambda_handler(event, context):
         role = get_role(event)
         if role not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
+        parts = path.split('/')
+        class_id = parts[4]
+        date = parts[6]
+        body = json.loads(event.get('body') or '{}')
         # Teachers/admins update full records
         table.put_item(Item={
             'pk': f'ATTENDANCE#{class_id}', 'sk': date,

@@ -9,7 +9,7 @@ let editingId = null;
 
 // ---- COURSES ----
 async function loadCourses() {
-  const res = await AUTH.api('GET', '/admin/classes');
+  const res = await AUTH.api('GET', '/admin/courses');
   allCourses = Array.isArray(res) ? res : [];
 
   const filter = document.getElementById('course-filter');
@@ -154,8 +154,8 @@ function addBlock(type) {
   if (type === 'header') block.text = '';
   if (type === 'paragraph') block.text = '';
   if (type === 'bullets') block.items = [''];
-  if (type === 'image') block.url = ''; block.alt = '';
-  if (type === 'file') block.url = ''; block.name = '';
+  if (type === 'image') { block.url = ''; block.alt = ''; }
+  if (type === 'file') { block.url = ''; block.name = ''; }
   if (type === 'math') block.formula = '';
   if (type === 'divider') {}
   blocks.push(block);

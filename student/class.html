@@ -162,7 +162,6 @@
           const isPast = date < today;
           const isToday = date === today;
           const cls2 = isToday ? 'session-today' : isPast ? 'session-past' : 'session-future';
-          const att = attMap[date]?.[username];
           let attCell = '';
           if (isPast || isToday) {
             const att = attMap[date]?.[username];
