@@ -76,14 +76,24 @@ const AUTH = {
   },
 
   async api(method, path, body) {
-    const res = await fetch(this.apiBase + path, {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': this.getIdToken()
-      },
-      body: body ? JSON.stringify(body) : undefined
-    });
-    return res.json();
+    try {
+      const res = await fetch(this.apiBase + path, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': this.getIdToken()
+        },
+        body: body ? JSON.stringify(body) : undefined
+      });
+      if (!res.ok && res.status === 401) {
+        // Token expired mid-session — redirect to login
+        this.logout();
+        return { error: 'Session expired' };
+      }
+      return res.json();
+    } catch (err) {
+      console.error('API error:', method, path, err);
+      return { error: 'Network error. Please check your connection.' };
+    }
   }
 };

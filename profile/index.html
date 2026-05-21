@@ -58,6 +58,8 @@
     <p class="msg" id="msg"></p>
   </div>
   <script>
+    // Prevent future dates for DOB
+    document.getElementById('dob').max = new Date().toISOString().split('T')[0];
     document.getElementById('save-btn').addEventListener('click', async () => {
       const msg = document.getElementById('msg');
       const firstName = document.getElementById('firstName').value.trim();

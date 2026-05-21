@@ -178,6 +178,14 @@
 
     function showSummary() {
       const total = questions.length;
+      if (!total) {
+        const s = document.getElementById('score-summary');
+        document.getElementById('final-score').textContent = '—';
+        document.getElementById('final-msg').textContent = 'No questions in this assignment.';
+        s.classList.add('show');
+        s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
       const pct = Math.round((correct.size / total) * 100);
       document.getElementById('final-score').textContent = correct.size + ' / ' + total;
       document.getElementById('final-msg').textContent =

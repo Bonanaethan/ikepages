@@ -7,25 +7,6 @@ let allCourses = [];
 let blocks = [];
 let editingId = null;
 
-// ---- COURSES ----
-async function loadCourses() {
-  const res = await AUTH.api('GET', '/admin/courses');
-  allCourses = Array.isArray(res) ? res : [];
-
-  const filter = document.getElementById('course-filter');
-  const courseSelect = document.getElementById('h-course');
-
-  if (allCourses.length) {
-    document.getElementById('filter-bar').style.display = '';
-    filter.innerHTML = '<option value="all">All Courses</option>' +
-      allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
-    if (courseSelect) {
-      courseSelect.innerHTML = '<option value="">No course</option>' +
-        allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
-    }
-  }
-}
-
 // ---- HANDOUTS LIST ----
 async function loadHandouts() {
   const list = document.getElementById('handouts-list');
@@ -356,19 +337,20 @@ function escAttr(str) {
 
 // ---- INIT ----
 (async () => {
-  // Load courses for everyone so filter shows course names
-  const res = await AUTH.api('GET', '/courses');
-  allCourses = Array.isArray(res) ? res : [];
-
-  const filter = document.getElementById('course-filter');
+  // Load all courses once — admin endpoint for teachers, student endpoint for students
+  const res = await AUTH.api('GET', isTeacher ? '/admin/courses' : '/courses');
+  let allCoursesList = Array.isArray(res) ? res : [];
 
   if (!isTeacher) {
-    // Students only see courses from their classes
+    // Students only see courses from their enrolled classes
     const myClasses = await AUTH.api('GET', '/my/classes');
     const myCourseIds = new Set((Array.isArray(myClasses) ? myClasses : []).map(c => c.courseId).filter(Boolean));
-    allCourses = allCourses.filter(c => myCourseIds.has(c.sk));
+    allCoursesList = allCoursesList.filter(c => myCourseIds.has(c.sk));
   }
 
+  allCourses = allCoursesList;
+
+  const filter = document.getElementById('course-filter');
   if (allCourses.length) {
     document.getElementById('filter-bar').style.display = '';
     filter.innerHTML = '<option value="all">All Courses</option>' +
@@ -384,10 +366,8 @@ function escAttr(str) {
   if (isTeacher) {
     const courseSelect = document.getElementById('h-course');
     if (courseSelect) {
-      const allCoursesRes = await AUTH.api('GET', '/admin/courses');
-      const allCoursesList = Array.isArray(allCoursesRes) ? allCoursesRes : [];
       courseSelect.innerHTML = '<option value="">No course</option>' +
-        allCoursesList.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
+        allCourses.map(c => `<option value="${c.sk}">${c.name}</option>`).join('');
     }
   }
 

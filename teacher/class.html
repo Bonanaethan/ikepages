@@ -348,7 +348,6 @@
       if (!date) return;
       msg.textContent = 'Saving...'; msg.className = 'msg';
       const res = await AUTH.api('PUT', `/admin/classes/${classId}/attendance/${date}`, { records: attendanceRecords });
-      console.log('Attendance save response:', res);
       if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
       msg.textContent = 'Attendance saved.'; msg.className = 'msg success';
     });
@@ -387,18 +386,37 @@
           const markedFileName = s.markedFileName || 'Marked';
           const submittedFiles = s.submittedFiles || [];
 
+          const statusVal = submitted ? 'submitted' : 'not_submitted';
           html += `<td style="vertical-align:top">
             <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
 
-              <!-- Submission status -->
-              <div style="display:flex;align-items:center;gap:8px">
-                <span class="status-badge ${submitted ? 'badge-green' : 'badge-muted'}">${submitted ? '✓ Submitted' : '— Not submitted'}</span>
-                <button class="btn sm ghost" onclick="toggleSubmitted('${m}','${a.sk}',${!submitted})" title="Toggle manually">✎</button>
+              <!-- Submission status dropdown -->
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Status:</div>
+                <select
+                  onchange="setSubmissionStatus('${m}','${a.sk}',this.value)"
+                  style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-size:12px;font-family:inherit;outline:none;cursor:pointer;transition:border-color 0.15s"
+                  onfocus="this.style.borderColor='var(--yellow)'" onblur="this.style.borderColor='var(--border)'">
+                  <option value="not_submitted" ${!submitted ? 'selected' : ''}>— Not submitted</option>
+                  <option value="submitted" ${submitted ? 'selected' : ''}>✓ Submitted</option>
+                </select>
               </div>
 
               <!-- Student submitted files -->
               <div id="sub-files-${m}-${a.sk}">
                 <span style="font-size:11px;color:var(--muted)">Loading...</span>
+              </div>
+
+              <!-- Upload on behalf of student -->
+              <div>
+                <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Upload for student:</div>
+                <div id="student-upload-files-${m}-${a.sk}" style="margin-bottom:6px"></div>
+                <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;color:var(--text);transition:border-color 0.15s"
+                  onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)'">
+                  📎 Upload submission
+                  <input type="file" style="display:none" onchange="uploadStudentFile(event,'${m}','${a.sk}')" />
+                </label>
+                <span id="student-upload-msg-${m}-${a.sk}" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
               </div>
 
               <!-- Marked file -->
@@ -428,6 +446,7 @@
       members.forEach(m => {
         assignments.forEach(async a => {
           const el = document.getElementById(`sub-files-${m}-${a.sk}`);
+          const uploadFilesEl = document.getElementById(`student-upload-files-${m}-${a.sk}`);
           if (!el) return;
           try {
             const sub = await AUTH.api('GET', `/submissions/${a.sk}`);
@@ -444,6 +463,15 @@
               if (studentSub.note) {
                 el.innerHTML += `<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">"${studentSub.note}"</div>`;
               }
+              // Show uploaded-on-behalf files in the upload section too
+              if (uploadFilesEl) {
+                uploadFilesEl.innerHTML = studentSub.files.map(f =>
+                  `<a href="${f.url}" target="_blank" download="${f.name}"
+                    style="display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.08);border:1px solid #4caf50;border-radius:6px;padding:3px 8px;text-decoration:none;color:#4caf50;font-size:11px;margin-right:4px;margin-bottom:4px">
+                    📎 ${f.name}
+                  </a>`
+                ).join('');
+              }
             } else {
               el.innerHTML = '<span style="font-size:12px;color:var(--muted)">No files submitted</span>';
             }
@@ -452,9 +480,47 @@
       });
     }
 
-    window.toggleSubmitted = async (username, assignmentId, newVal) => {
-      await AUTH.api('PUT', `/admin/classes/${classId}/hw-status`, { username, assignmentId, submitted: newVal });
+    window.setSubmissionStatus = async (username, assignmentId, value) => {
+      const submitted = value === 'submitted';
+      await AUTH.api('PUT', `/admin/classes/${classId}/hw-status`, { username, assignmentId, submitted });
       loadHwStatus();
+    };
+
+    window.uploadStudentFile = async (e, username, assignmentId) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const msgEl = document.getElementById(`student-upload-msg-${username}-${assignmentId}`);
+      if (msgEl) { msgEl.textContent = 'Uploading...'; msgEl.style.color = 'var(--muted)'; }
+      const uploadRes = await AUTH.api('POST', '/upload-url', { filename: file.name, contentType: file.type });
+      if (uploadRes.error) {
+        if (msgEl) { msgEl.textContent = 'Upload failed.'; msgEl.style.color = '#e05252'; }
+        return;
+      }
+      await fetch(uploadRes.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      // Fetch existing submission files for this student, then append the new one
+      const existingSub = await AUTH.api('GET', `/submissions/${assignmentId}`);
+      const studentSub = Array.isArray(existingSub) ? existingSub.find(s => s.sk === username) : null;
+      const existingFiles = studentSub?.files || [];
+      const updatedFiles = [...existingFiles, { name: file.name, url: uploadRes.publicUrl }];
+      // Save via hw-status override (stores file list on behalf of student)
+      await AUTH.api('PUT', `/admin/classes/${classId}/hw-status`, {
+        username, assignmentId,
+        submitted: true,
+        submittedFiles: updatedFiles
+      });
+      if (msgEl) { msgEl.textContent = 'Uploaded.'; msgEl.style.color = '#4caf50'; setTimeout(() => { msgEl.textContent = ''; }, 3000); }
+      // Refresh the cell
+      const uploadFilesEl = document.getElementById(`student-upload-files-${username}-${assignmentId}`);
+      if (uploadFilesEl) {
+        const link = document.createElement('a');
+        link.href = uploadRes.publicUrl;
+        link.target = '_blank';
+        link.download = file.name;
+        link.style.cssText = 'display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.08);border:1px solid #4caf50;border-radius:6px;padding:3px 8px;text-decoration:none;color:#4caf50;font-size:11px;margin-right:4px;margin-bottom:4px';
+        link.innerHTML = `📎 ${file.name}`;
+        uploadFilesEl.appendChild(link);
+      }
+      e.target.value = '';
     };
 
     window.uploadMarked = async (e, username, assignmentId) => {

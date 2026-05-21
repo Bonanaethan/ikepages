@@ -44,15 +44,26 @@ def get_username(event):
 
 def get_student_course_ids(table, username):
     """Get all course IDs accessible to a student via their classes."""
-    classes_result = table.query(
-        KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS')
-    )
+    classes_result = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
     course_ids = set()
-    for cls in classes_result.get('Items', []):
+    for cls in classes_result:
         if username in (cls.get('members') or []):
             if cls.get('courseId'):
                 course_ids.add(cls['courseId'])
     return list(course_ids)
+
+def query_all(table, key_condition):
+    """Query DynamoDB handling pagination via LastEvaluatedKey."""
+    items = []
+    kwargs = {'KeyConditionExpression': key_condition}
+    while True:
+        result = table.query(**kwargs)
+        items.extend(result.get('Items', []))
+        last_key = result.get('LastEvaluatedKey')
+        if not last_key:
+            break
+        kwargs['ExclusiveStartKey'] = last_key
+    return items
 
 def lambda_handler(event, context):
     method = event['requestContext']['http']['method']
@@ -169,13 +180,15 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/prod/admin/courses':
         if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
-        result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
-        return resp(200, result.get('Items', []))
+        items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
+        return resp(200, items)
 
-    # GET /courses — public course list for all authenticated users
+    # GET /courses — course list for all authenticated users
     if method == 'GET' and path == '/prod/courses':
-        result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
-        return resp(200, result.get('Items', []))
+        if not get_role(event):
+            return resp(403, {'error': 'Forbidden'})
+        items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('COURSE'))
+        return resp(200, items)
 
     if method == 'POST' and path == '/prod/admin/courses':
         if get_role(event) != 'admin':
@@ -204,8 +217,7 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/prod/my/classes':
         try:
             username = get_username(event)
-            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
-            my_classes = [c for c in result.get('Items', []) if username in (c.get('members') or [])]
+            my_classes = [c for c in query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS')) if username in (c.get('members') or [])]
             return resp(200, my_classes)
         except Exception as e:
             return resp(500, {'error': str(e)})
@@ -213,8 +225,8 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/prod/admin/classes':
         if get_role(event) not in ('admin', 'teacher'):
             return resp(403, {'error': 'Forbidden'})
-        result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
-        return resp(200, result.get('Items', []))
+        items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+        return resp(200, items)
 
     if method == 'POST' and path == '/prod/admin/classes':
         if get_role(event) != 'admin':
@@ -309,8 +321,7 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/prod/assignments':
         try:
             username = get_username(event)
-            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
-            items = result.get('Items', [])
+            items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
             role = get_role(event)
             if role in ('teacher', 'admin'):
                 return resp(200, items)
@@ -326,11 +337,13 @@ def lambda_handler(event, context):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         body = json.loads(event.get('body') or '{}')
+        existing = table.get_item(Key={'pk': 'ASSIGNMENT', 'sk': item_id}).get('Item', {})
         table.put_item(Item={
             'pk': 'ASSIGNMENT', 'sk': item_id,
             'title': body.get('title', ''), 'subject': body.get('subject', ''),
             'content': body.get('content', ''), 'dueDate': body.get('dueDate', ''),
             'courseId': body.get('courseId', ''), 'assignedTo': body.get('assignedTo', 'all'),
+            'createdAt': existing.get('createdAt', ''),
             'updatedAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Updated'})
@@ -354,8 +367,8 @@ def lambda_handler(event, context):
     if method == 'GET' and path == '/prod/assignments/done':
         try:
             username = get_username(event)
-            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'DONE#{username}'))
-            return resp(200, {item['sk']: item.get('done', False) for item in result.get('Items', [])})
+            items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq(f'DONE#{username}'))
+            return resp(200, {item['sk']: item.get('done', False) for item in items})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
@@ -406,8 +419,8 @@ def lambda_handler(event, context):
             assignment_id = path.split('/')[-1]
             role = get_role(event)
             if role in ('teacher', 'admin'):
-                result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq(f'SUBMISSION#{assignment_id}'))
-                return resp(200, result.get('Items', []))
+                items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq(f'SUBMISSION#{assignment_id}'))
+                return resp(200, items)
             else:
                 result = table.get_item(Key={'pk': f'SUBMISSION#{assignment_id}', 'sk': username})
                 return resp(200, result.get('Item', {}))
@@ -435,8 +448,7 @@ def lambda_handler(event, context):
         try:
             username = get_username(event)
             role = get_role(event)
-            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('HANDOUT'))
-            all_handouts = result.get('Items', [])
+            all_handouts = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('HANDOUT'))
             if role in ('teacher', 'admin'):
                 return resp(200, all_handouts)
             # Students see handouts whose courseId matches their enrolled courses
@@ -451,11 +463,14 @@ def lambda_handler(event, context):
             return resp(403, {'error': 'Forbidden'})
         item_id = path.split('/')[-1]
         body = json.loads(event.get('body') or '{}')
+        existing = table.get_item(Key={'pk': 'HANDOUT', 'sk': item_id}).get('Item', {})
         table.put_item(Item={
             'pk': 'HANDOUT', 'sk': item_id,
             'title': body.get('title', ''), 'url': body.get('url', ''),
             'description': body.get('description', ''), 'content': body.get('content', ''),
-            'courseId': body.get('courseId', ''), 'updatedAt': datetime.now(timezone.utc).isoformat()
+            'courseId': body.get('courseId', ''),
+            'createdAt': existing.get('createdAt', ''),
+            'updatedAt': datetime.now(timezone.utc).isoformat()
         })
         return resp(200, {'message': 'Updated'})
 
@@ -486,13 +501,11 @@ def lambda_handler(event, context):
         try:
             username = get_username(event)
             role = get_role(event)
-            result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ANNOUNCEMENT'))
-            items = result.get('Items', [])
+            items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('ANNOUNCEMENT'))
             if role in ('teacher', 'admin'):
                 return resp(200, items)
             # Get student's class IDs
-            classes_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
-            student_class_ids = [c['sk'] for c in classes_result.get('Items', []) if username in (c.get('members') or [])]
+            student_class_ids = [c['sk'] for c in query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS')) if username in (c.get('members') or [])]
             visible = []
             for a in items:
                 assigned = a.get('assignedTo', 'all')
@@ -578,10 +591,10 @@ def lambda_handler(event, context):
             if role == 'student' and target_username != current_user:
                 return resp(403, {'error': 'Forbidden'})
             # Find the class for this student+assignment
-            classes_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            classes = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
             marked_file = ''
             marked_file_name = ''
-            for cls in classes_result.get('Items', []):
+            for cls in classes:
                 if target_username in (cls.get('members') or []):
                     class_id = cls['sk']
                     overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
@@ -608,9 +621,9 @@ def lambda_handler(event, context):
             marked_file = body.get('markedFile', '')
             marked_file_name = body.get('markedFileName', '')
             # Find the student's class and save there
-            classes_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
+            classes = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
             saved = False
-            for cls in classes_result.get('Items', []):
+            for cls in classes:
                 if target_username in (cls.get('members') or []):
                     class_id = cls['sk']
                     overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
@@ -726,8 +739,8 @@ def lambda_handler(event, context):
             cls = table.get_item(Key={'pk': 'CLASS', 'sk': class_id}).get('Item', {})
             members = cls.get('members', [])
             course_id = cls.get('courseId', '')
-            assignments_result = table.query(KeyConditionExpression=boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
-            assignments = [a for a in assignments_result.get('Items', []) if a.get('courseId') == course_id]
+            assignments_result = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('ASSIGNMENT'))
+            assignments = [a for a in assignments_result if a.get('courseId') == course_id]
             overrides_result = table.get_item(Key={'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides'})
             overrides = overrides_result.get('Item', {}).get('data', {})
             status = {}
@@ -769,6 +782,22 @@ def lambda_handler(event, context):
         if 'markedFile' in body:
             overrides[key]['markedFile'] = body['markedFile']
             overrides[key]['markedFileName'] = body.get('markedFileName', '')
+        # If admin is uploading files on behalf of a student, write to the submission record directly
+        if 'submittedFiles' in body:
+            submitted_files = body['submittedFiles']
+            existing_sub = table.get_item(Key={'pk': f'SUBMISSION#{aid}', 'sk': uname}).get('Item', {})
+            table.put_item(Item={
+                'pk': f'SUBMISSION#{aid}', 'sk': uname,
+                'files': submitted_files,
+                'note': existing_sub.get('note', ''),
+                'answers': existing_sub.get('answers', {}),
+                'submitted': body.get('submitted', existing_sub.get('submitted', True)),
+                'submittedAt': existing_sub.get('submittedAt') or datetime.now(timezone.utc).isoformat(),
+                'savedAt': datetime.now(timezone.utc).isoformat(),
+                'uploadedByAdmin': True
+            })
+            # Also mark submitted in overrides
+            overrides[f'{uname}#{aid}#submitted'] = body.get('submitted', True)
         table.put_item(Item={
             'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides',
             'data': overrides,
