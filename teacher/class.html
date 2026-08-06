@@ -382,9 +382,8 @@
         assignments.forEach(a => {
           const s = (status[m] || {})[a.sk] || {};
           const submitted = s.submitted;
-          const markedFile = s.markedFile || '';
-          const markedFileName = s.markedFileName || 'Marked';
-          const submittedFiles = s.submittedFiles || [];
+          // Support both new markedFiles list and legacy single markedFile
+          const markedFiles = s.markedFiles || (s.markedFile ? [{ url: s.markedFile, name: s.markedFileName || 'Marked' }] : []);
 
           const statusVal = submitted ? 'submitted' : 'not_submitted';
           html += `<td style="vertical-align:top">
@@ -419,19 +418,25 @@
                 <span id="student-upload-msg-${m}-${a.sk}" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
               </div>
 
-              <!-- Marked file -->
+              <!-- Marked files (multiple) -->
               <div>
                 <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Marked:</div>
-                <div id="marked-file-${m}-${a.sk}" style="margin-bottom:6px">
-                  ${markedFile
-                    ? `<a href="${markedFile}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 10px;text-decoration:none;color:#4caf50;font-size:12px">📄 ${markedFileName} ↓</a>`
+                <div id="marked-file-${m}-${a.sk}" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+                  ${markedFiles.length
+                    ? markedFiles.map(f => `
+                        <span style="display:inline-flex;align-items:center;gap:4px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 8px;font-size:12px">
+                          <a href="${f.url}" target="_blank" style="text-decoration:none;color:#4caf50">📄 ${f.name} ↓</a>
+                          <button onclick="deleteMarkedFile('${m}','${a.sk}','${f.url.replace(/'/g,"\\'")}','${f.name.replace(/'/g,"\\'")}')"
+                            style="background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:2px" title="Remove">×</button>
+                        </span>`).join('')
                     : `<span style="font-size:12px;color:var(--muted)">Not uploaded</span>`}
                 </div>
-                <label style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;color:var(--text);transition:border-color 0.15s"
+                <label id="marked-upload-label-${m}-${a.sk}" style="display:inline-flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;cursor:pointer;font-size:11px;color:var(--text);transition:border-color 0.15s"
                   onmouseover="this.style.borderColor='var(--yellow)'" onmouseout="this.style.borderColor='var(--border)'">
                   📤 Upload marked
                   <input type="file" style="display:none" onchange="uploadMarked(event,'${m}','${a.sk}')" />
                 </label>
+                <span id="marked-upload-msg-${m}-${a.sk}" style="font-size:11px;color:var(--muted);margin-left:8px"></span>
               </div>
             </div>
           </td>`;
@@ -526,16 +531,57 @@
     window.uploadMarked = async (e, username, assignmentId) => {
       const file = e.target.files[0];
       if (!file) return;
+      const msgEl = document.getElementById(`marked-upload-msg-${username}-${assignmentId}`);
+      if (msgEl) { msgEl.textContent = 'Uploading...'; msgEl.style.color = 'var(--muted)'; }
       const uploadRes = await AUTH.api('POST', '/upload-url', { filename: file.name, contentType: file.type });
-      if (uploadRes.error) { alert('Upload failed: ' + uploadRes.error); return; }
+      if (uploadRes.error) {
+        if (msgEl) { msgEl.textContent = 'Upload failed.'; msgEl.style.color = '#e05252'; }
+        return;
+      }
       await fetch(uploadRes.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
       await AUTH.api('PUT', `/admin/classes/${classId}/hw-status`, {
         username, assignmentId,
         markedFile: uploadRes.publicUrl,
         markedFileName: file.name
       });
+      if (msgEl) { msgEl.textContent = 'Uploaded.'; msgEl.style.color = '#4caf50'; setTimeout(() => { msgEl.textContent = ''; }, 3000); }
+      e.target.value = '';
+      // Append the new file chip to the container
       const el = document.getElementById(`marked-file-${username}-${assignmentId}`);
-      if (el) el.innerHTML = `<a href="${uploadRes.publicUrl}" target="_blank" style="display:inline-flex;align-items:center;gap:6px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 10px;text-decoration:none;color:#4caf50;font-size:12px">📄 ${file.name} ↓</a>`;
+      if (el) {
+        // Remove "Not uploaded" placeholder if present
+        const placeholder = el.querySelector('span');
+        if (placeholder && placeholder.textContent.trim() === 'Not uploaded') placeholder.remove();
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:4px;background:rgba(76,175,80,0.1);border:1px solid #4caf50;border-radius:6px;padding:4px 8px;font-size:12px';
+        const escapedUrl = uploadRes.publicUrl.replace(/'/g, "\\'");
+        const escapedName = file.name.replace(/'/g, "\\'");
+        chip.innerHTML = `<a href="${uploadRes.publicUrl}" target="_blank" style="text-decoration:none;color:#4caf50">📄 ${file.name} ↓</a>
+          <button onclick="deleteMarkedFile('${username}','${assignmentId}','${escapedUrl}','${escapedName}')"
+            style="background:none;border:none;color:#e05252;cursor:pointer;font-size:14px;padding:0;line-height:1;margin-left:2px" title="Remove">×</button>`;
+        el.appendChild(chip);
+      }
+    };
+
+    window.deleteMarkedFile = async (username, assignmentId, fileUrl, fileName) => {
+      if (!confirm(`Remove "${fileName}" from marked files?`)) return;
+      await AUTH.api('PUT', `/admin/classes/${classId}/hw-status`, {
+        username, assignmentId,
+        markedFile: fileUrl,   // identifies the file to delete (backend checks deleteUrl)
+        deleteUrl: fileUrl
+      });
+      // Remove the chip from the DOM
+      const el = document.getElementById(`marked-file-${username}-${assignmentId}`);
+      if (el) {
+        const chips = el.querySelectorAll('span');
+        chips.forEach(chip => {
+          const link = chip.querySelector('a');
+          if (link && link.href === fileUrl) chip.remove();
+        });
+        if (!el.querySelector('span')) {
+          el.innerHTML = '<span style="font-size:12px;color:var(--muted)">Not uploaded</span>';
+        }
+      }
     };
   </script>
 </body>

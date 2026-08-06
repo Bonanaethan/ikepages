@@ -601,15 +601,19 @@ def lambda_handler(event, context):
                     overrides = overrides_result.get('Item', {}).get('data', {})
                     key = f'{target_username}#{assignment_id}'
                     marked_data = overrides.get(key, {})
-                    if marked_data.get('markedFile'):
-                        marked_file = marked_data['markedFile']
-                        marked_file_name = marked_data.get('markedFileName', 'Marked homework')
+                    if marked_data.get('markedFiles') or marked_data.get('markedFile'):
+                        # Normalise: prefer markedFiles list, fall back to legacy single file
+                        marked_files = marked_data.get('markedFiles') or []
+                        if not marked_files and marked_data.get('markedFile'):
+                            marked_files = [{'url': marked_data['markedFile'], 'name': marked_data.get('markedFileName', 'Marked homework')}]
+                        marked_file = marked_files[0]['url'] if marked_files else ''
+                        marked_file_name = marked_files[0]['name'] if marked_files else ''
                         break
-            return resp(200, {'markedFile': marked_file, 'markedFileName': marked_file_name})
+            return resp(200, {'markedFile': marked_file, 'markedFileName': marked_file_name, 'markedFiles': marked_files})
         except Exception as e:
             return resp(500, {'error': str(e)})
 
-    # PUT /marked/{assignmentId}/{username} — upload marked file (teacher/admin only)
+    # PUT /marked/{assignmentId}/{username} — upload/delete marked file (teacher/admin only)
     if method == 'PUT' and path.startswith('/prod/marked/'):
         if get_role(event) not in ('teacher', 'admin'):
             return resp(403, {'error': 'Forbidden'})
@@ -618,8 +622,6 @@ def lambda_handler(event, context):
             assignment_id = parts[3]
             target_username = parts[4]
             body = json.loads(event.get('body') or '{}')
-            marked_file = body.get('markedFile', '')
-            marked_file_name = body.get('markedFileName', '')
             # Find the student's class and save there
             classes = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
             saved = False
@@ -631,8 +633,23 @@ def lambda_handler(event, context):
                     key = f'{target_username}#{assignment_id}'
                     if key not in overrides:
                         overrides[key] = {}
-                    overrides[key]['markedFile'] = marked_file
-                    overrides[key]['markedFileName'] = marked_file_name
+                    # Normalise legacy single-file field into list
+                    existing_files = overrides[key].get('markedFiles') or []
+                    if not existing_files and overrides[key].get('markedFile'):
+                        existing_files = [{'url': overrides[key]['markedFile'], 'name': overrides[key].get('markedFileName', 'Marked homework')}]
+                    if 'deleteUrl' in body:
+                        # Remove a specific file by URL
+                        existing_files = [f for f in existing_files if f.get('url') != body['deleteUrl']]
+                    else:
+                        # Append new file
+                        new_file_url = body.get('markedFile', '')
+                        new_file_name = body.get('markedFileName', '')
+                        if new_file_url:
+                            existing_files.append({'url': new_file_url, 'name': new_file_name})
+                    overrides[key]['markedFiles'] = existing_files
+                    # Keep legacy field pointing to the first file for backward compat
+                    overrides[key]['markedFile'] = existing_files[0]['url'] if existing_files else ''
+                    overrides[key]['markedFileName'] = existing_files[0]['name'] if existing_files else ''
                     table.put_item(Item={
                         'pk': f'HW_STATUS#{class_id}', 'sk': 'overrides',
                         'data': overrides,
@@ -643,21 +660,20 @@ def lambda_handler(event, context):
             if not saved:
                 return resp(404, {'error': 'Student not found in any class'})
 
-            # Get assignment title for notification
-            assignment = table.get_item(Key={'pk': 'ASSIGNMENT', 'sk': assignment_id}).get('Item', {})
-            assignment_title = assignment.get('title', 'your homework')
-
-            # Create notification announcement for the student
-            notif_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
-            table.put_item(Item={
-                'pk': 'ANNOUNCEMENT', 'sk': notif_id,
-                'title': f'✅ Homework marked: {assignment_title}',
-                'message': f'Your submission for "{assignment_title}" has been marked. Open the homework to view your marked file.',
-                'assignedTo': [target_username],
-                'type': 'hw_marked',
-                'assignmentId': assignment_id,
-                'createdAt': datetime.now(timezone.utc).isoformat()
-            })
+            # Get assignment title for notification (only when adding a file, not deleting)
+            if 'deleteUrl' not in body and body.get('markedFile'):
+                assignment = table.get_item(Key={'pk': 'ASSIGNMENT', 'sk': assignment_id}).get('Item', {})
+                assignment_title = assignment.get('title', 'your homework')
+                notif_id = str(int(datetime.now(timezone.utc).timestamp() * 1000))
+                table.put_item(Item={
+                    'pk': 'ANNOUNCEMENT', 'sk': notif_id,
+                    'title': f'✅ Homework marked: {assignment_title}',
+                    'message': f'Your submission for "{assignment_title}" has been marked. Open the homework to view your marked file.',
+                    'assignedTo': [target_username],
+                    'type': 'hw_marked',
+                    'assignmentId': assignment_id,
+                    'createdAt': datetime.now(timezone.utc).isoformat()
+                })
 
             return resp(200, {'message': 'Marked file saved'})
         except Exception as e:
@@ -752,12 +768,18 @@ def lambda_handler(event, context):
                     submitted = sub.get('submitted', False)
                     marked_key = f'{uname}#{aid}'
                     marked_data = overrides.get(marked_key, {})
+                    # Normalise legacy single-file field into list
+                    marked_files = marked_data.get('markedFiles') or []
+                    if not marked_files and marked_data.get('markedFile'):
+                        marked_files = [{'url': marked_data['markedFile'], 'name': marked_data.get('markedFileName', 'Marked homework')}]
                     status[uname][aid] = {
                         'title': a.get('title', ''),
                         'submitted': overrides.get(f'{uname}#{aid}#submitted', submitted),
-                        'markedFile': marked_data.get('markedFile', ''),
-                        'markedFileName': marked_data.get('markedFileName', ''),
-                        'marked': bool(marked_data.get('markedFile', ''))
+                        'markedFiles': marked_files,
+                        # Legacy fields for backward compat
+                        'markedFile': marked_files[0]['url'] if marked_files else '',
+                        'markedFileName': marked_files[0]['name'] if marked_files else '',
+                        'marked': bool(marked_files)
                     }
             return resp(200, {'assignments': [{'sk': a['sk'], 'title': a.get('title','')} for a in assignments], 'status': status})
         except Exception as e:
@@ -779,9 +801,18 @@ def lambda_handler(event, context):
             overrides[key] = {}
         if 'submitted' in body:
             overrides[f'{uname}#{aid}#submitted'] = body['submitted']
-        if 'markedFile' in body:
-            overrides[key]['markedFile'] = body['markedFile']
-            overrides[key]['markedFileName'] = body.get('markedFileName', '')
+        if 'markedFile' in body or 'deleteUrl' in body:
+            # Normalise existing files into list
+            existing_files = overrides[key].get('markedFiles') or []
+            if not existing_files and overrides[key].get('markedFile'):
+                existing_files = [{'url': overrides[key]['markedFile'], 'name': overrides[key].get('markedFileName', 'Marked homework')}]
+            if 'deleteUrl' in body:
+                existing_files = [f for f in existing_files if f.get('url') != body['deleteUrl']]
+            elif body.get('markedFile'):
+                existing_files.append({'url': body['markedFile'], 'name': body.get('markedFileName', '')})
+            overrides[key]['markedFiles'] = existing_files
+            overrides[key]['markedFile'] = existing_files[0]['url'] if existing_files else ''
+            overrides[key]['markedFileName'] = existing_files[0]['name'] if existing_files else ''
         # If admin is uploading files on behalf of a student, write to the submission record directly
         if 'submittedFiles' in body:
             submitted_files = body['submittedFiles']
