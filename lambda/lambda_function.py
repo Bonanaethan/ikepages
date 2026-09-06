@@ -554,6 +554,17 @@ def lambda_handler(event, context):
 
     # ==================== PROFILE ====================
 
+    # GET /admin/profiles — lightweight endpoint for teachers/admins to look up student names
+    if method == 'GET' and path == '/prod/admin/profiles':
+        if get_role(event) not in ('teacher', 'admin'):
+            return resp(403, {'error': 'Forbidden'})
+        try:
+            items = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('PROFILE'))
+            profiles = [{'username': item['sk'], 'firstName': item.get('firstName', ''), 'lastName': item.get('lastName', '')} for item in items]
+            return resp(200, profiles)
+        except Exception as e:
+            return resp(500, {'error': str(e)})
+
     if method == 'GET' and path == '/prod/profile':
         try:
             username = get_username(event)
@@ -594,6 +605,7 @@ def lambda_handler(event, context):
             classes = query_all(table, boto3.dynamodb.conditions.Key('pk').eq('CLASS'))
             marked_file = ''
             marked_file_name = ''
+            marked_files = []
             for cls in classes:
                 if target_username in (cls.get('members') or []):
                     class_id = cls['sk']

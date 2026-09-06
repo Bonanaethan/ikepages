@@ -148,6 +148,11 @@
     let members = [];
     let attendanceRecords = {};
     let hwStatus = { assignments: [], status: {} };
+    let nameMap = {}; // username → "First Last"
+
+    function displayName(username) {
+      return nameMap[username] || username;
+    }
 
     // ---- TABS ----
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -165,14 +170,23 @@
 
     // ---- INIT ----
     (async () => {
-      const [classRes, scheduleRes] = await Promise.all([
+      const [classRes, scheduleRes, profilesRes] = await Promise.all([
         AUTH.api('GET', '/admin/classes'),
-        AUTH.api('GET', `/admin/classes/${classId}/schedule`)
+        AUTH.api('GET', `/admin/classes/${classId}/schedule`),
+        AUTH.api('GET', '/admin/profiles')
       ]);
       const classes = Array.isArray(classRes) ? classRes : [];
       classData = classes.find(c => c.sk === classId) || {};
       members = classData.members || [];
       document.getElementById('class-name').textContent = classData.name || 'Class Detail';
+
+      // Build username → "First Last" map
+      if (Array.isArray(profilesRes)) {
+        profilesRes.forEach(p => {
+          const full = [p.firstName, p.lastName].filter(Boolean).join(' ');
+          if (full) nameMap[p.username] = full;
+        });
+      }
 
       if (scheduleRes.sessions) {
         schedule = scheduleRes;
@@ -321,7 +335,7 @@
         const current = attendanceRecords[m] || 'absent';
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="font-weight:500">${m}</td>
+          <td style="font-weight:500">${displayName(m)}</td>
           <td>
             <div style="display:flex;gap:6px">
               <button class="attendance-btn ${current==='present'?'present':''}" data-user="${m}" data-status="present">Present</button>
@@ -378,7 +392,7 @@
         <tbody>`;
 
       members.forEach(m => {
-        html += `<tr><td style="font-weight:500;white-space:nowrap;vertical-align:top;padding-top:14px">${m}</td>`;
+        html += `<tr><td style="font-weight:500;white-space:nowrap;vertical-align:top;padding-top:14px">${displayName(m)}</td>`;
         assignments.forEach(a => {
           const s = (status[m] || {})[a.sk] || {};
           const submitted = s.submitted;
