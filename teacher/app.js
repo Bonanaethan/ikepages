@@ -230,11 +230,14 @@ async function loadClasses() {
       ${(cl.members||[]).length ? `
       <div style="display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;border-top:1px solid var(--border);width:100%">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;width:100%;margin-bottom:4px">Students</div>
-        ${(cl.members||[]).map(m => `
-          <span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px">
-            ${m}
+        ${(cl.members||[]).map(m => {
+          const u = allUsers.find(x => x.username === m);
+          const displayName = (u?.firstName && u?.lastName) ? `${u.firstName} ${u.lastName}` : m;
+          return `<span style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;display:inline-flex;align-items:center;gap:6px">
+            ${displayName}
             <button onclick="removeMember('${cl.sk}','${m}')" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0;line-height:1">×</button>
-          </span>`).join('')}
+          </span>`;
+        }).join('')}
       </div>` : ''}`;
     list.appendChild(card);
   });
@@ -397,6 +400,7 @@ document.getElementById('ann-save').addEventListener('click', async () => {
 
 // ==================== INIT ====================
 (async () => {
-  await Promise.all([loadCourses(), loadClasses()]);
-  loadUsers();
+  await Promise.all([loadCourses(), loadClasses(), loadUsers()]);
+  // Re-render classes now that allUsers is populated
+  loadClasses();
 })();

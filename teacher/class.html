@@ -163,7 +163,7 @@
         const panel = document.getElementById('tab-' + btn.dataset.tab);
         panel.classList.remove('hidden');
         panel.classList.add('active');
-        if (btn.dataset.tab === 'attendance') renderAttendanceDateSelect();
+        if (btn.dataset.tab === 'attendance') { renderAttendanceDateSelect(); renderAttendanceOverview(); }
         if (btn.dataset.tab === 'hw-status') loadHwStatus();
       });
     });
@@ -303,23 +303,98 @@
     // ---- ATTENDANCE ----
     function renderAttendanceDateSelect() {
       const sel = document.getElementById('attendance-date-select');
-      // Combine scheduled dates with any dates that have saved attendance
       const scheduledDates = (schedule.sessions || []).filter(Boolean);
-      // Merge and deduplicate, sort descending
       const allDates = [...new Set([...scheduledDates])].sort((a, b) => b.localeCompare(a));
-      sel.innerHTML = '<option value="">— pick a date —</option>' +
+      sel.innerHTML = '<option value="">— overview —</option>' +
         allDates.map(d => {
           const label = new Date(d + 'T00:00:00').toLocaleDateString('en-CA', { weekday:'short', year:'numeric', month:'short', day:'numeric' });
           return `<option value="${d}">${label}</option>`;
         }).join('');
     }
 
+    async function renderAttendanceOverview() {
+      const wrap = document.getElementById('attendance-table-wrap');
+      const saveBtn = document.getElementById('save-attendance-btn');
+      saveBtn.style.display = 'none';
+
+      if (!members.length) {
+        wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">No students in this class.</p>';
+        return;
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      // Show past sessions only, most recent first, up to last 8
+      const pastDates = (schedule.sessions || [])
+        .filter(d => d && d <= today)
+        .sort((a, b) => b.localeCompare(a))
+        .slice(0, 8);
+
+      if (!pastDates.length) {
+        wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">No past sessions yet.</p>';
+        return;
+      }
+
+      wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading overview...</p>';
+
+      // Fetch all past session records in parallel
+      const results = await Promise.all(
+        pastDates.map(d => AUTH.api('GET', `/admin/classes/${classId}/attendance/${d}`))
+      );
+      const recordsByDate = {};
+      pastDates.forEach((d, i) => { recordsByDate[d] = results[i].records || {}; });
+
+      // Status badge helper
+      const badge = (status) => {
+        if (status === 'present') return `<span class="status-badge badge-green">✓ P</span>`;
+        if (status === 'late')    return `<span class="status-badge badge-yellow">~ L</span>`;
+        return `<span class="status-badge badge-muted">— A</span>`;
+      };
+
+      let html = `<div style="overflow-x:auto"><table>
+        <thead><tr>
+          <th style="white-space:nowrap">Student</th>
+          ${pastDates.map(d => {
+            const dt = new Date(d + 'T00:00:00');
+            const top = dt.toLocaleDateString('en-CA', { month:'short', day:'numeric' });
+            const bot = dt.toLocaleDateString('en-CA', { weekday:'short' });
+            return `<th style="text-align:center;min-width:64px">
+              <div>${top}</div>
+              <div style="font-weight:400;color:var(--muted);font-size:10px">${bot}</div>
+            </th>`;
+          }).join('')}
+          <th style="text-align:center">Present</th>
+        </tr></thead>
+        <tbody>`;
+
+      members.forEach(m => {
+        const statuses = pastDates.map(d => recordsByDate[d][m] || 'absent');
+        const presentCount = statuses.filter(s => s === 'present' || s === 'late').length;
+        const pct = Math.round((presentCount / pastDates.length) * 100);
+        const pctColor = pct >= 80 ? '#4caf50' : pct >= 60 ? 'var(--yellow)' : '#e05252';
+
+        html += `<tr>
+          <td style="font-weight:500;white-space:nowrap">${displayName(m)}</td>
+          ${statuses.map(s => `<td style="text-align:center">${badge(s)}</td>`).join('')}
+          <td style="text-align:center;font-weight:600;color:${pctColor}">${pct}%</td>
+        </tr>`;
+      });
+
+      html += '</tbody></table></div>';
+      html += `<p style="font-size:11px;color:var(--muted);margin-top:12px">Showing last ${pastDates.length} session${pastDates.length !== 1 ? 's' : ''}. Select a date above to edit.</p>`;
+      wrap.innerHTML = html;
+    }
+
     document.getElementById('attendance-date-select').addEventListener('change', async (e) => {
       const date = e.target.value;
       const wrap = document.getElementById('attendance-table-wrap');
       const saveBtn = document.getElementById('save-attendance-btn');
-      if (!date) { wrap.innerHTML = ''; saveBtn.style.display = 'none'; return; }
 
+      if (!date) {
+        renderAttendanceOverview();
+        return;
+      }
+
+      wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading...</p>';
       const res = await AUTH.api('GET', `/admin/classes/${classId}/attendance/${date}`);
       attendanceRecords = res.records || {};
 
@@ -364,6 +439,8 @@
       const res = await AUTH.api('PUT', `/admin/classes/${classId}/attendance/${date}`, { records: attendanceRecords });
       if (res.error) { msg.textContent = res.error; msg.className = 'msg error'; return; }
       msg.textContent = 'Attendance saved.'; msg.className = 'msg success';
+      // Refresh overview cache on next open
+      document.getElementById('attendance-date-select').dataset.dirty = '1';
     });
 
     // ---- HOMEWORK STATUS ----
@@ -384,22 +461,22 @@
       if (!assignments.length) { wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">No assignments for this course yet.</p>'; return; }
       if (!members.length) { wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">No students in this class.</p>'; return; }
 
+      // Assignments as rows, students as columns
       let html = `<div style="overflow-x:auto"><table>
         <thead><tr>
-          <th>Student</th>
-          ${assignments.map(a => `<th style="min-width:220px">${a.title}</th>`).join('')}
+          <th style="min-width:160px">Practice</th>
+          ${members.map(m => `<th style="min-width:220px">${displayName(m)}</th>`).join('')}
         </tr></thead>
         <tbody>`;
 
-      members.forEach(m => {
-        html += `<tr><td style="font-weight:500;white-space:nowrap;vertical-align:top;padding-top:14px">${displayName(m)}</td>`;
-        assignments.forEach(a => {
+      assignments.forEach(a => {
+        html += `<tr><td style="font-weight:500;white-space:nowrap;vertical-align:top;padding-top:14px">${a.title}</td>`;
+        members.forEach(m => {
           const s = (status[m] || {})[a.sk] || {};
           const submitted = s.submitted;
           // Support both new markedFiles list and legacy single markedFile
           const markedFiles = s.markedFiles || (s.markedFile ? [{ url: s.markedFile, name: s.markedFileName || 'Marked' }] : []);
 
-          const statusVal = submitted ? 'submitted' : 'not_submitted';
           html += `<td style="vertical-align:top">
             <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
 
