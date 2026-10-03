@@ -323,11 +323,10 @@
       }
 
       const today = new Date().toISOString().split('T')[0];
-      // Show past sessions only, most recent first, up to last 8
+      // All past sessions, oldest first so the table reads chronologically top-to-bottom
       const pastDates = (schedule.sessions || [])
         .filter(d => d && d <= today)
-        .sort((a, b) => b.localeCompare(a))
-        .slice(0, 8);
+        .sort((a, b) => a.localeCompare(b));
 
       if (!pastDates.length) {
         wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">No past sessions yet.</p>';
@@ -336,7 +335,7 @@
 
       wrap.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading overview...</p>';
 
-      // Fetch all past session records in parallel
+      // Fetch every session in parallel
       const results = await Promise.all(
         pastDates.map(d => AUTH.api('GET', `/admin/classes/${classId}/attendance/${d}`))
       );
@@ -345,42 +344,42 @@
 
       // Status badge helper
       const badge = (status) => {
-        if (status === 'present') return `<span class="status-badge badge-green">✓ P</span>`;
-        if (status === 'late')    return `<span class="status-badge badge-yellow">~ L</span>`;
-        return `<span class="status-badge badge-muted">— A</span>`;
+        if (status === 'present') return `<span class="status-badge badge-green">P</span>`;
+        if (status === 'late')    return `<span class="status-badge badge-yellow">L</span>`;
+        return `<span class="status-badge badge-red">A</span>`;
       };
 
+      // Build table: rows = sessions (date on left), columns = students (name on top)
       let html = `<div style="overflow-x:auto"><table>
         <thead><tr>
-          <th style="white-space:nowrap">Student</th>
-          ${pastDates.map(d => {
-            const dt = new Date(d + 'T00:00:00');
-            const top = dt.toLocaleDateString('en-CA', { month:'short', day:'numeric' });
-            const bot = dt.toLocaleDateString('en-CA', { weekday:'short' });
-            return `<th style="text-align:center;min-width:64px">
-              <div>${top}</div>
-              <div style="font-weight:400;color:var(--muted);font-size:10px">${bot}</div>
-            </th>`;
-          }).join('')}
-          <th style="text-align:center">Present</th>
+          <th style="white-space:nowrap;min-width:140px">Class (Date)</th>
+          ${members.map(m => `<th style="text-align:center;min-width:80px;white-space:nowrap">${displayName(m)}</th>`).join('')}
         </tr></thead>
         <tbody>`;
 
-      members.forEach(m => {
-        const statuses = pastDates.map(d => recordsByDate[d][m] || 'absent');
-        const presentCount = statuses.filter(s => s === 'present' || s === 'late').length;
-        const pct = Math.round((presentCount / pastDates.length) * 100);
-        const pctColor = pct >= 80 ? '#4caf50' : pct >= 60 ? 'var(--yellow)' : '#e05252';
+      pastDates.forEach((d, idx) => {
+        const dt = new Date(d + 'T00:00:00');
+        const dateLabel = dt.toLocaleDateString('en-CA', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+        const sessionNum = idx + 1;
+        // Stripe alternating rows subtly
+        const rowBg = idx % 2 === 1 ? 'background:rgba(255,255,255,0.02)' : '';
 
-        html += `<tr>
-          <td style="font-weight:500;white-space:nowrap">${displayName(m)}</td>
-          ${statuses.map(s => `<td style="text-align:center">${badge(s)}</td>`).join('')}
-          <td style="text-align:center;font-weight:600;color:${pctColor}">${pct}%</td>
+        html += `<tr style="${rowBg}">
+          <td style="white-space:nowrap;font-weight:500">
+            <span style="color:var(--muted);font-size:11px;margin-right:6px">#${sessionNum}</span>${dateLabel}
+            ${d === today ? `<span style="font-size:10px;background:var(--yellow-lt);color:var(--yellow);border-radius:4px;padding:2px 5px;margin-left:6px">Today</span>` : ''}
+          </td>
+          ${members.map(m => `<td style="text-align:center">${badge(recordsByDate[d][m] || 'absent')}</td>`).join('')}
         </tr>`;
       });
 
       html += '</tbody></table></div>';
-      html += `<p style="font-size:11px;color:var(--muted);margin-top:12px">Showing last ${pastDates.length} session${pastDates.length !== 1 ? 's' : ''}. Select a date above to edit.</p>`;
+      html += `<p style="font-size:11px;color:var(--muted);margin-top:12px">
+        <span class="status-badge badge-green" style="margin-right:4px">P</span> Present &nbsp;
+        <span class="status-badge badge-yellow" style="margin-right:4px">L</span> Late &nbsp;
+        <span class="status-badge badge-red" style="margin-right:4px">A</span> Absent &nbsp;·&nbsp;
+        Select a date above to edit attendance.
+      </p>`;
       wrap.innerHTML = html;
     }
 
